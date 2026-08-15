@@ -138,49 +138,134 @@ def scrape_bayless():
     s = BeautifulSoup(r.text, "html.parser")
     html = str(s)
 
-    # Preferimos el H1 del artículo, no el título global del sitio.
-    h1 = s.find("h1")
-    title = clean(h1.get_text(" ", strip=True)) if h1 else ""
+    # ---------------------------------------------------------------
+    # TÍTULO DEL DEVOCIONAL
+    # ---------------------------------------------------------------
+    # No usamos simplemente el primer H1 porque Bayless coloca
+    # "Devocional Diario" como encabezado general del sitio.
+    # Buscamos primero un título que corresponda al artículo.
+    title = ""
 
-    # Si el H1 no existe, buscamos OpenGraph/title y eliminamos sufijos comunes.
+    candidatos = []
+
+    # H1, H2 y H3 pueden variar según la plantilla de WordPress.
+    for tag in s.find_all(["h1", "h2", "h3"]):
+        texto = clean(tag.get_text(" ", strip=True))
+        if not texto:
+            continue
+
+        # Ignorar títulos generales del sitio.
+        ignorados = {
+            "devocional diario",
+            "respuestas para cada día",
+            "bayless conley",
+        }
+
+        if texto.lower() in ignorados:
+            continue
+
+        candidatos.append(texto)
+
+    # Preferimos un título que tenga estructura de artículo.
+    for candidato in candidatos:
+        # El artículo actual aparece como:
+        # "#227 El Consolador"
+        # o simplemente:
+        # "El Consolador"
+        if re.search(r"(#\s*\d+\s+)?[A-Za-zÁÉÍÓÚáéíóúÑñÜü]", candidato):
+            title = candidato
+            break
+
+    # Si todavía no encontramos título, probar OpenGraph.
     if not title:
         og = s.find("meta", attrs={"property": "og:title"})
-        title = clean(og.get("content", "")) if og else ""
+        if og:
+            title = clean(og.get("content", ""))
+
+    # Último recurso: title de la página.
     if not title:
         title_tag = s.find("title")
-        title = clean(title_tag.get_text()) if title_tag else ""
+        if title_tag:
+            title = clean(title_tag.get_text())
 
+    # ---------------------------------------------------------------
+    # LIMPIAR EL TÍTULO
+    # ---------------------------------------------------------------
+    # Quitar el número del episodio:
+    # "#227 El Consolador" -> "El Consolador"
+    title = re.sub(r"^\s*#\s*\d+\s*[-–—:]?\s*", "", title).strip()
+
+    # Por seguridad, nunca permitir que el nombre general del sitio
+    # termine siendo el título del devocional.
+    if title.lower() in {
+        "devocional diario",
+        "respuestas para cada día",
+        "bayless conley",
+    }:
+        title = ""
+
+    # ---------------------------------------------------------------
+    # TEXTO
+    # ---------------------------------------------------------------
     paragraphs = []
+
     for p in s.find_all("p"):
         text = clean(p.get_text(" ", strip=True))
+
         if not text:
             continue
+
         low = text.lower()
+
         if any(x in low for x in (
-            "suscrib", "recibir devocionales", "escuche este devocional",
-            "share", "compartir"
+            "suscrib",
+            "recibir devocionales",
+            "escuche este devocional",
+            "share",
+            "compartir",
         )):
             continue
+
         if len(text) < 20:
             continue
+
         paragraphs.append(text)
 
+    # ---------------------------------------------------------------
+    # AUDIO SOUNDCLOUD
+    # ---------------------------------------------------------------
     audio = ""
-    # Primero el enlace directo al episodio de SoundCloud.
+
+    # Primero buscamos el enlace directo al episodio.
     for a in s.find_all("a", href=True):
-        href = a["href"]
-        if "soundcloud.com/respuestasbc/" in href and "/sets/" not in href:
+        href = a["href"].strip()
+
+        if (
+            "soundcloud.com/respuestasbc/" in href
+            and "/sets/" not in href
+        ):
             audio = href
             break
 
-    # Luego cualquier URL SoundCloud incrustada.
+    # Después buscamos una URL incrustada en el HTML.
     if not audio:
-        m = re.search(r"https?://(?:www\.)?soundcloud\.com/respuestasbc/[A-Za-z0-9_-]+", html)
+        m = re.search(
+            r"https?://(?:www\.)?soundcloud\.com/"
+            r"respuestasbc/[A-Za-z0-9_-]+",
+            html,
+            flags=re.I,
+        )
+
         if m:
             audio = m.group(0)
 
+    # ---------------------------------------------------------------
+    # VALIDACIÓN
+    # ---------------------------------------------------------------
     if not title or not paragraphs:
-        raise RuntimeError("No se pudo extraer título o texto de Bayless Conley")
+        raise RuntimeError(
+            "No se pudo extraer título o texto de Bayless Conley"
+        )
 
     return {
         "titulo": title,
