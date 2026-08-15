@@ -97,16 +97,6 @@ body {
   color: #222;
 }
 
-.verse {
-  text-align: center;
-  font-size: 18px;
-  line-height: 1.6;
-  padding: 16px;
-  margin: 15px 0 22px;
-  border-radius: 12px;
-  background: #eeeeee;
-}
-
 .text {
   font-size: 17px;
   line-height: 1.75;
@@ -360,10 +350,6 @@ footer {
     line-height: 1.7;
   }
 
-  .verse {
-    font-size: 16px;
-  }
-
   .radio-box {
     padding: 17px;
   }
@@ -406,7 +392,7 @@ footer {
 
 
 <!-- =========================================================
-     EN CONTACTO  (contenido inyectado por JS)
+     EN CONTACTO
      ========================================================= -->
 
 <section class="card" id="card-encontacto">
@@ -416,7 +402,7 @@ footer {
 
 
 <!-- =========================================================
-     BAYLESS CONLEY (contenido inyectado por JS)
+     BAYLESS CONLEY
      ========================================================= -->
 
 <section class="card" id="card-bayless">
@@ -426,7 +412,7 @@ footer {
 
 
 <!-- =========================================================
-     KENNETH COPELAND (contenido inyectado por JS)
+     KENNETH COPELAND
      ========================================================= -->
 
 <section class="card" id="card-kenneth">
@@ -437,7 +423,7 @@ footer {
 
 
 <!-- =========================================================
-     RADIO CRISTIANA (sin cambios, es estático por naturaleza)
+     RADIO CRISTIANA
      ========================================================= -->
 
 <section class="card">
@@ -551,7 +537,7 @@ footer {
 <script>
 
 /* ---------------------------------------------------------
-   1) RADIO (igual que antes, no depende de data.json)
+   1) RADIO
    --------------------------------------------------------- */
 
 const radioSelect = document.getElementById("radioSelect");
@@ -559,6 +545,7 @@ const radioPlayer  = document.getElementById("radioPlayer");
 const stationName  = document.getElementById("stationName");
 
 radioSelect.addEventListener("change", function () {
+
   const url = this.value;
   const selectedText = this.options[this.selectedIndex].text;
 
@@ -572,147 +559,498 @@ radioSelect.addEventListener("change", function () {
   stationName.textContent = selectedText;
   radioPlayer.src = url;
   radioPlayer.load();
+
   radioPlayer.play().catch(function () {
     /* Si el navegador bloquea autoplay, el usuario pulsa Play. */
   });
+
 });
 
 
 /* ---------------------------------------------------------
-   2) DEVOCIONALES: se cargan desde data.json
-   (data.json lo genera scrape_devocionales.py una vez al día
-   vía GitHub Actions — ver README.md)
+   2) DEVOCIONALES
    --------------------------------------------------------- */
 
 function escapeHtml(str) {
+
   const div = document.createElement("div");
+
   div.textContent = str || "";
+
   return div.innerHTML;
+
 }
+
 
 function renderParrafos(parrafos) {
-  if (!parrafos || !parrafos.length) return "";
-  return parrafos.map(p => `<p>${escapeHtml(p)}</p>`).join("");
+
+  if (!parrafos || !parrafos.length) {
+    return "";
+  }
+
+  return parrafos
+    .map(p => `<p>${escapeHtml(p)}</p>`)
+    .join("");
+
 }
 
 
-function compartirDevocional(encodedDevo) {
+/* ---------------------------------------------------------
+   COMPARTIR DEVOCIONAL
+   --------------------------------------------------------- */
+
+function compartirDevocional(encodedDevo, fuente) {
+
   let devo;
 
   try {
-    devo = JSON.parse(decodeURIComponent(encodedDevo));
+
+    devo = JSON.parse(
+      decodeURIComponent(encodedDevo)
+    );
+
   } catch (err) {
-    console.error("No se pudo preparar el devocional para compartir.", err);
+
+    console.error(
+      "No se pudo preparar el devocional para compartir.",
+      err
+    );
+
     return;
   }
 
-  const titulo = devo.titulo || "Devocional diario";
-  const url = devo.link || window.location.href;
-  const texto = `${titulo}\n\nLee este devocional:`;
+
+  /* Enlaces específicos solicitados para cada fuente */
+
+  const enlaces = {
+
+    encontacto:
+      "https://www.encontactoglobal.org/lea/devocionales-diarios",
+
+    bayless:
+      "https://www.respuestasbc.com/devotional/",
+
+    kenneth:
+      "https://main.kcmlatino.org/devotional"
+
+  };
+
+
+  const titulo =
+    devo.titulo || "Devocional diario";
+
+
+  const url =
+    enlaces[fuente] ||
+    devo.link ||
+    window.location.href;
+
+
+  /* Obtener TODO el texto del devocional */
+
+  const textoDevocional =
+    (devo.parrafos || []).join("\n\n");
+
+
+  /* Texto que será compartido */
+
+  const texto =
+    `${titulo}\n\n${textoDevocional}\n\n${url}`;
+
+
+  /* -------------------------------------------------------
+     CELULARES Y NAVEGADORES CON WEB SHARE
+     ------------------------------------------------------- */
 
   if (navigator.share) {
+
     navigator.share({
+
       title: titulo,
-      text: texto,
-      url: url
+
+      text: texto
+
     }).catch(function () {
+
       /* El usuario canceló el menú de compartir. */
+
     });
+
     return;
   }
 
-  if (navigator.clipboard && window.isSecureContext) {
-    navigator.clipboard.writeText(url).then(function () {
-      alert("Enlace del devocional copiado.");
-    }).catch(function () {
-      window.prompt("Copia este enlace:", url);
-    });
+
+  /* -------------------------------------------------------
+     COMPUTADOR: COPIAR AL PORTAPAPELES
+     ------------------------------------------------------- */
+
+  if (
+    navigator.clipboard &&
+    window.isSecureContext
+  ) {
+
+    navigator.clipboard
+      .writeText(texto)
+
+      .then(function () {
+
+        alert(
+          "El texto del devocional y su enlace fueron copiados."
+        );
+
+      })
+
+      .catch(function () {
+
+        window.prompt(
+          "Copia el texto y enlace del devocional:",
+          texto
+        );
+
+      });
+
   } else {
-    window.prompt("Copia este enlace:", url);
+
+    window.prompt(
+      "Copia el texto y enlace del devocional:",
+      texto
+    );
+
   }
+
 }
 
+
+/* ---------------------------------------------------------
+   3) REPRODUCTORES DE AUDIO
+   --------------------------------------------------------- */
+
 function renderAudio(devo) {
+
   if (!devo.audio_url) {
-    return `<div class="audio-note">Audio no disponible hoy.</div>`;
+
+    return `
+      <div class="audio-note">
+        Audio no disponible hoy.
+      </div>
+    `;
+
   }
 
+
+  /* -------------------------------------------------------
+     SOUNDCLOUD
+     ------------------------------------------------------- */
+
   if (devo.audio_tipo === "soundcloud") {
+
     const embedSrc =
       "https://w.soundcloud.com/player/?url=" +
       encodeURIComponent(devo.audio_url) +
-      "&auto_play=false&hide_related=true&show_comments=false&show_user=true&show_reposts=false&visual=false";
+      "&auto_play=false" +
+      "&hide_related=true" +
+      "&show_comments=false" +
+      "&show_user=true" +
+      "&show_reposts=false" +
+      "&visual=false";
+
+
     return `
+
       <div class="audio-area">
-        <strong>🎧 Audio del devocional</strong>
-        <iframe class="audio-frame" src="${embedSrc}" height="166" scrolling="no" allow="autoplay"></iframe>
-        <div class="audio-note">Audio oficial de SoundCloud</div>
-      </div>`;
+
+        <strong>
+          🎧 Audio del devocional
+        </strong>
+
+        <iframe
+          class="audio-frame"
+          src="${embedSrc}"
+          height="166"
+          scrolling="no"
+          allow="autoplay">
+        </iframe>
+
+        <div class="audio-note">
+          Audio oficial de SoundCloud
+        </div>
+
+      </div>
+
+    `;
+
   }
 
-  // mp3 directo
+
+  /* -------------------------------------------------------
+     MP3 DIRECTO
+     ------------------------------------------------------- */
+
   return `
+
     <div class="audio-area">
-      <strong>🎧 Audio del devocional</strong>
-      <audio controls preload="none" src="${escapeHtml(devo.audio_url)}"></audio>
-      <div class="audio-note">Audio del devocional</div>
-    </div>`;
+
+      <strong>
+        🎧 Audio del devocional
+      </strong>
+
+      <audio
+        controls
+        preload="none"
+        src="${escapeHtml(devo.audio_url)}">
+      </audio>
+
+      <div class="audio-note">
+        Audio del devocional
+      </div>
+
+    </div>
+
+  `;
+
 }
 
-function renderCard(containerId, headerLabel, devo, fecha) {
-  const section = document.getElementById(containerId);
+
+/* ---------------------------------------------------------
+   4) MOSTRAR CADA DEVOCIONAL
+   --------------------------------------------------------- */
+
+function renderCard(
+  containerId,
+  headerLabel,
+  devo,
+  fecha,
+  fuente
+) {
+
+  const section =
+    document.getElementById(containerId);
+
+
+  /* Si una fuente no está disponible */
 
   if (!devo) {
+
     section.innerHTML = `
-      <h2>${headerLabel}</h2>
+
+      <h2>
+        ${headerLabel}
+      </h2>
+
       <div class="error-msg">
-        No se pudo cargar el devocional de hoy desde la fuente original.
+
+        No se pudo cargar el devocional de hoy
+        desde la fuente original.
+
         Intenta de nuevo más tarde.
-      </div>`;
+
+      </div>
+
+    `;
+
     return;
+
   }
 
+
+  /* -------------------------------------------------------
+     CONTENIDO DE LA TARJETA
+     ------------------------------------------------------- */
+
   section.innerHTML = `
-    <h2>${headerLabel}</h2>
-    <div class="date">${escapeHtml(fecha)}</div>
-    ${devo.titulo ? `<div class="dev-title">${escapeHtml(devo.titulo)}</div>` : ""}
-    ${devo.versiculo ? `<div class="verse"><strong>${escapeHtml(devo.versiculo)}</strong></div>` : ""}
-    <div class="text">${renderParrafos(devo.parrafos)}</div>
+
+    <h2>
+      ${headerLabel}
+    </h2>
+
+
+    <div class="date">
+      ${escapeHtml(fecha)}
+    </div>
+
+
+    ${
+      devo.titulo
+        ? `
+          <div class="dev-title">
+            ${escapeHtml(devo.titulo)}
+          </div>
+        `
+        : ""
+    }
+
+
+    <div class="text">
+      ${renderParrafos(devo.parrafos)}
+    </div>
+
+
+    <!-- BOTÓN COMPARTIR -->
+
     <div class="share-area">
+
       <button
         class="share-button"
         type="button"
-        onclick="compartirDevocional('${encodeURIComponent(JSON.stringify(devo))}')">
+        onclick="compartirDevocional(
+          '${encodeURIComponent(JSON.stringify(devo))}',
+          '${fuente}'
+        )">
+
         ↗ Compartir este devocional
+
       </button>
+
     </div>
+
+
+    <!-- AUDIO -->
+
     ${renderAudio(devo)}
+
+
+    <!-- ENLACE AL DEVOCIONAL ORIGINAL -->
+
     <div class="actions">
-      <a href="${escapeHtml(devo.link)}" target="_blank" rel="noopener">Ver devocional completo</a>
-    </div>`;
+
+      <a
+        href="${escapeHtml(devo.link)}"
+        target="_blank"
+        rel="noopener">
+
+        Ver devocional completo
+
+      </a>
+
+    </div>
+
+  `;
+
 }
+
+
+/* ---------------------------------------------------------
+   5) CARGAR DATA.JSON
+   --------------------------------------------------------- */
 
 async function cargarDevocionales() {
+
   try {
-    const resp = await fetch("./data.json", { cache: "no-store" });
-    if (!resp.ok) throw new Error("data.json no encontrado (HTTP " + resp.status + ")");
-    const data = await resp.json();
 
-    document.getElementById("updatedNote").textContent =
-      data.generado ? "Actualizado: " + new Date(data.generado).toLocaleString("es") : "";
+    const resp =
+      await fetch(
+        "./data.json",
+        {
+          cache: "no-store"
+        }
+      );
 
-    renderCard("card-encontacto", "En Contacto", data.encontacto, data.fecha);
-    renderCard("card-bayless", "Bayless Conley", data.bayless, data.fecha);
-    renderCard("card-kenneth", "Kenneth Copeland", data.kenneth, data.fecha);
+
+    if (!resp.ok) {
+
+      throw new Error(
+        "data.json no encontrado (HTTP " +
+        resp.status +
+        ")"
+      );
+
+    }
+
+
+    const data =
+      await resp.json();
+
+
+    /* Mostrar fecha/hora de actualización */
+
+    document.getElementById(
+      "updatedNote"
+    ).textContent =
+
+      data.generado
+        ? "Actualizado: " +
+          new Date(
+            data.generado
+          ).toLocaleString("es")
+        : "";
+
+
+    /* -----------------------------------------------------
+       EN CONTACTO
+       ----------------------------------------------------- */
+
+    renderCard(
+      "card-encontacto",
+      "En Contacto",
+      data.encontacto,
+      data.fecha,
+      "encontacto"
+    );
+
+
+    /* -----------------------------------------------------
+       BAYLESS CONLEY
+       ----------------------------------------------------- */
+
+    renderCard(
+      "card-bayless",
+      "Bayless Conley",
+      data.bayless,
+      data.fecha,
+      "bayless"
+    );
+
+
+    /* -----------------------------------------------------
+       KENNETH COPELAND
+       ----------------------------------------------------- */
+
+    renderCard(
+      "card-kenneth",
+      "Kenneth Copeland",
+      data.kenneth,
+      data.fecha,
+      "kenneth"
+    );
+
 
   } catch (err) {
+
     console.error(err);
-    ["card-encontacto", "card-bayless", "card-kenneth"].forEach(id => {
-      const section = document.getElementById(id);
-      section.innerHTML += `<div class="error-msg">No se pudo cargar el contenido de hoy. (${escapeHtml(err.message)})</div>`;
+
+
+    [
+      "card-encontacto",
+      "card-bayless",
+      "card-kenneth"
+    ].forEach(function (id) {
+
+      const section =
+        document.getElementById(id);
+
+
+      section.innerHTML += `
+
+        <div class="error-msg">
+
+          No se pudo cargar el contenido de hoy.
+
+          (${escapeHtml(err.message)})
+
+        </div>
+
+      `;
+
     });
+
   }
+
 }
+
+
+/* ---------------------------------------------------------
+   6) INICIAR
+   --------------------------------------------------------- */
 
 cargarDevocionales();
 
