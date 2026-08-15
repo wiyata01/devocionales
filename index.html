@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Devocionales Diarios y Radio Cristiana</title>
+
+<style>
+
+/* =========================================================
+   CONFIGURACIÓN GENERAL
+   ========================================================= */
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background: #2f2f2f;
+  color: #222;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.container {
+  width: min(100% - 24px, 1000px);
+  margin: 0 auto;
+  padding: 25px 0 45px;
+}
+
+
+/* =========================================================
+   ENCABEZADO
+   ========================================================= */
+
+.main-title {
+  text-align: center;
+  color: white;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(36px, 8vw, 62px);
+  line-height: 1.05;
+  margin: 10px 0 10px;
+  font-weight: 700;
+}
+
+.main-subtitle {
+  text-align: center;
+  color: #d8d8d8;
+  font-size: clamp(17px, 4vw, 23px);
+  line-height: 1.4;
+  margin: 0 0 30px;
+}
+
+
+/* =========================================================
+   TARJETAS DE DEVOCIONALES
+   ========================================================= */
+
+.card {
+  background: #ffffff;
+  border-radius: 22px;
+  padding: 28px;
+  margin-bottom: 28px;
+  box-shadow: 0 5px 18px rgba(0,0,0,.22);
+}
+
+.card h2 {
+  text-align: center;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(30px, 7vw, 48px);
+  line-height: 1.15;
+  margin: 0 0 10px;
+  font-weight: 700;
+  color: #222;
+}
+
+.date {
+  text-align: center;
+  color: #666;
+  font-size: 15px;
+  margin-bottom: 15px;
+}
+
+.dev-title {
+  text-align: center;
+  font-weight: 700;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(24px, 5.5vw, 36px);
+  line-height: 1.2;
+  margin: 15px 0 22px;
+  color: #222;
+}
+
+.verse {
+  text-align: center;
+  font-size: 18px;
+  line-height: 1.6;
+  padding: 16px;
+  margin: 15px 0 22px;
+  border-radius: 12px;
+  background: #eeeeee;
+}
+
+.text {
+  font-size: 17px;
+  line-height: 1.75;
+}
+
+.text p {
+  margin: 0 0 18px;
+}
+
+.text strong {
+  font-weight: 700;
+}
+
+.loading-msg, .error-msg {
+  text-align: center;
+  padding: 20px;
+  color: #888;
+  font-style: italic;
+}
+
+.error-msg {
+  color: #a33;
+}
+
+
+/* =========================================================
+   REPRODUCTORES DE AUDIO
+   ========================================================= */
+
+.audio-area {
+  margin-top: 26px;
+  padding: 20px;
+  border-radius: 15px;
+  background: #eeeeee;
+  text-align: center;
+}
+
+.audio-area > strong {
+  display: block;
+  font-size: 19px;
+  margin-bottom: 10px;
+}
+
+.audio-area audio {
+  display: block;
+  width: 100%;
+  margin: 10px auto 0;
+}
+
+.audio-frame {
+  display: block;
+  width: 100%;
+  border: 0;
+  border-radius: 10px;
+  margin: 10px auto 0;
+}
+
+.audio-note {
+  font-size: 12px;
+  color: #666;
+  margin-top: 9px;
+}
+
+
+/* =========================================================
+   BOTONES / ENLACES
+   ========================================================= */
+
+.actions {
+  text-align: center;
+  margin-top: 17px;
+}
+
+.actions a {
+  display: inline-block;
+  text-decoration: none;
+  background: #333333;
+  color: #ffffff;
+  padding: 11px 18px;
+  border-radius: 9px;
+  margin: 4px;
+  font-size: 15px;
+}
+
+.actions a:hover {
+  background: #555555;
+}
+
+
+/* =========================================================
+   RADIO CRISTIANA
+   ========================================================= */
+
+.radio-title {
+  text-align: center;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(32px, 7vw, 50px);
+  font-weight: 700;
+  margin: 0 0 22px;
+  color: #222;
+}
+
+.radio-box {
+  background: #222222;
+  border-radius: 18px;
+  padding: 22px;
+  color: #ffffff;
+}
+
+
+/* =========================================================
+   SELECTOR DE RADIO
+   ========================================================= */
+
+.radio-select-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.radio-box select {
+  display: block;
+  width: 100%;
+  min-height: 58px;
+  padding: 15px 58px 15px 17px;
+  border-radius: 13px;
+  border: 3px solid #ffffff;
+  background: #ffffff;
+  color: #222222;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+}
+
+.radio-select-wrap::after {
+  content: "▼";
+  position: absolute;
+  right: 18px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 23px;
+  font-weight: 900;
+  color: #222222;
+  pointer-events: none;
+}
+
+.radio-box select:focus {
+  outline: 3px solid #bbbbbb;
+  outline-offset: 2px;
+}
+
+
+/* =========================================================
+   NOMBRE DE LA EMISORA
+   ========================================================= */
+
+.station-name {
+  text-align: center;
+  font-size: 20px;
+  font-weight: 700;
+  margin: 18px 0 12px;
+  color: #ffffff;
+}
+
+
+/* =========================================================
+   REPRODUCTOR DE RADIO
+   ========================================================= */
+
+#radioPlayer {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+}
+
+
+/* =========================================================
+   PIE DE PÁGINA
+   ========================================================= */
+
+footer {
+  text-align: center;
+  color: #cfcfcf;
+  font-size: 13px;
+  padding: 10px 20px 30px;
+}
+
+.updated-note {
+  text-align: center;
+  color: #999;
+  font-size: 12px;
+  margin-top: -6px;
+  margin-bottom: 20px;
+}
+
+
+/* =========================================================
+   AJUSTES PARA TELÉFONOS
+   ========================================================= */
+
+@media (max-width: 600px) {
+
+  .container {
+    width: min(100% - 18px, 1000px);
+    padding-top: 18px;
+  }
+
+  .card {
+    padding: 20px 17px;
+    border-radius: 19px;
+  }
+
+  .text {
+    font-size: 16px;
+    line-height: 1.7;
+  }
+
+  .verse {
+    font-size: 16px;
+  }
+
+  .radio-box {
+    padding: 17px;
+  }
+
+  .radio-box select {
+    font-size: 17px;
+    min-height: 58px;
+  }
+
+  .radio-select-wrap::after {
+    right: 16px;
+    font-size: 22px;
+  }
+
+}
+
+</style>
+</head>
+
+
+<body>
+
+<div class="container">
+
+
+<!-- =========================================================
+     ENCABEZADO
+     ========================================================= -->
+
+<div class="main-title">
+  Devocionales<br>
+  Diarios
+</div>
+
+<div class="main-subtitle">
+  En Contacto · Bayless Conley · Kenneth Copeland
+</div>
+
+<div class="updated-note" id="updatedNote"></div>
+
+
+<!-- =========================================================
+     EN CONTACTO  (contenido inyectado por JS)
+     ========================================================= -->
+
+<section class="card" id="card-encontacto">
+  <h2>En Contacto</h2>
+  <div class="loading-msg">Cargando devocional de hoy…</div>
+</section>
+
+
+<!-- =========================================================
+     BAYLESS CONLEY (contenido inyectado por JS)
+     ========================================================= -->
+
+<section class="card" id="card-bayless">
+  <h2>Bayless Conley</h2>
+  <div class="loading-msg">Cargando devocional de hoy…</div>
+</section>
+
+
+<!-- =========================================================
+     KENNETH COPELAND (contenido inyectado por JS)
+     ========================================================= -->
+
+<section class="card" id="card-kenneth">
+  <h2>Kenneth Copeland</h2>
+  <div class="loading-msg">Cargando devocional de hoy…</div>
+</section>
+
+
+
+<!-- =========================================================
+     RADIO CRISTIANA (sin cambios, es estático por naturaleza)
+     ========================================================= -->
+
+<section class="card">
+
+  <div class="radio-title">
+    Radio Cristiana
+  </div>
+
+  <div class="radio-box">
+
+    <div class="radio-select-wrap">
+
+      <select id="radioSelect">
+
+        <option value="" selected disabled>
+          Selecciona la Radio
+        </option>
+
+        <option value="http://supresenciaradio.out.airtime.pro:8000/supresenciaradio_b">
+          El Lugar de Su Presencia
+        </option>
+
+        <option value="https://streams.cbnradio.com/fiesta-hoy-128K">
+          CBN Fiesta Hoy
+        </option>
+
+        <option value="https://26283.live.streamtheworld.com/VIDA_BOGOTA_SC">
+          VIDA 890 AM
+        </option>
+
+        <option value="https://audio-edge-es6pf.mia.g.radiomast.io/475ebed1-595e-4717-b888-64fe8fc6b09f">
+          BBN Bible Broadcasting Network
+        </option>
+
+        <option value="https://playerservices.streamtheworld.com/api/livestream-redirect/RCEC.mp3">
+          Charles Stanley - Radio
+        </option>
+
+        <option value="https://streams.abidingradio.com:7800/1">
+          Instrumental Cristiana
+        </option>
+
+        <option value="https://stream-162.zeno.fm/4ppwpjjx3fsvv?zs=r_m2TA8aR3WxiBhZWHPgMA">
+          Instrumental Cristiana -
+        </option>
+
+        <option value="https://nwm.streamguys1.com/1/knwc/playlist.m3u8">
+          Life 96.5 FM
+        </option>
+
+        <option value="https://ice24.securenetsystems.net/WCVK">
+          Christian Family Radio
+        </option>
+
+        <option value="https://us1.streamingpulse.com/ssl/InHIMRadio">
+          In Him Radio
+        </option>
+
+        <option value="https://radio.truth.fm:8000/singing">
+          Truth FM
+        </option>
+
+        <option value="https://chronicles.radioca.st/stream">
+          Chronicles Christian Radio
+        </option>
+
+        <option value="https://stream.knvbc.com:8443/listen">
+          KNVBC
+        </option>
+
+        <option value="https://ais-sa8.cdnstream1.com/3327_64.aac">
+          KSBJ 89.3 FM
+        </option>
+
+        <option value="https://streams.cbnradio.com/praise-128K">
+          CBN Christmas Radio
+        </option>
+
+      </select>
+
+    </div>
+
+    <div class="station-name" id="stationName">
+      Selecciona una emisora
+    </div>
+
+    <audio id="radioPlayer" controls preload="none"></audio>
+
+  </div>
+
+</section>
+
+
+</div>
+
+
+<!-- =========================================================
+     PIE
+     ========================================================= -->
+
+<footer>
+  Devocionales diarios y Radio Cristiana
+</footer>
+
+
+
+<!-- =========================================================
+     JAVASCRIPT
+     ========================================================= -->
+
+<script>
+
+/* ---------------------------------------------------------
+   1) RADIO (igual que antes, no depende de data.json)
+   --------------------------------------------------------- */
+
+const radioSelect = document.getElementById("radioSelect");
+const radioPlayer  = document.getElementById("radioPlayer");
+const stationName  = document.getElementById("stationName");
+
+radioSelect.addEventListener("change", function () {
+  const url = this.value;
+  const selectedText = this.options[this.selectedIndex].text;
+
+  if (!url) {
+    radioPlayer.pause();
+    radioPlayer.removeAttribute("src");
+    stationName.textContent = "Selecciona una emisora";
+    return;
+  }
+
+  stationName.textContent = selectedText;
+  radioPlayer.src = url;
+  radioPlayer.load();
+  radioPlayer.play().catch(function () {
+    /* Si el navegador bloquea autoplay, el usuario pulsa Play. */
+  });
+});
+
+
+/* ---------------------------------------------------------
+   2) DEVOCIONALES: se cargan desde data.json
+   (data.json lo genera scrape_devocionales.py una vez al día
+   vía GitHub Actions — ver README.md)
+   --------------------------------------------------------- */
+
+function escapeHtml(str) {
+  const div = document.createElement("div");
+  div.textContent = str || "";
+  return div.innerHTML;
+}
+
+function renderParrafos(parrafos) {
+  if (!parrafos || !parrafos.length) return "";
+  return parrafos.map(p => `<p>${escapeHtml(p)}</p>`).join("");
+}
+
+function renderAudio(devo) {
+  if (!devo.audio_url) {
+    return `<div class="audio-note">Audio no disponible hoy.</div>`;
+  }
+
+  if (devo.audio_tipo === "soundcloud") {
+    const embedSrc =
+      "https://w.soundcloud.com/player/?url=" +
+      encodeURIComponent(devo.audio_url) +
+      "&auto_play=false&hide_related=true&show_comments=false&show_user=true&show_reposts=false&visual=false";
+    return `
+      <div class="audio-area">
+        <strong>🎧 Audio del devocional</strong>
+        <iframe class="audio-frame" src="${embedSrc}" height="166" scrolling="no" allow="autoplay"></iframe>
+        <div class="audio-note">Audio oficial de SoundCloud</div>
+      </div>`;
+  }
+
+  // mp3 directo
+  return `
+    <div class="audio-area">
+      <strong>🎧 Audio del devocional</strong>
+      <audio controls preload="none" src="${escapeHtml(devo.audio_url)}"></audio>
+      <div class="audio-note">Audio del devocional</div>
+    </div>`;
+}
+
+function renderCard(containerId, headerLabel, devo, fecha) {
+  const section = document.getElementById(containerId);
+
+  if (!devo) {
+    section.innerHTML = `
+      <h2>${headerLabel}</h2>
+      <div class="error-msg">
+        No se pudo cargar el devocional de hoy desde la fuente original.
+        Intenta de nuevo más tarde.
+      </div>`;
+    return;
+  }
+
+  section.innerHTML = `
+    <h2>${headerLabel}</h2>
+    <div class="date">${escapeHtml(fecha)}</div>
+    ${devo.titulo ? `<div class="dev-title">${escapeHtml(devo.titulo)}</div>` : ""}
+    ${devo.versiculo ? `<div class="verse"><strong>${escapeHtml(devo.versiculo)}</strong></div>` : ""}
+    <div class="text">${renderParrafos(devo.parrafos)}</div>
+    ${renderAudio(devo)}
+    <div class="actions">
+      <a href="${escapeHtml(devo.link)}" target="_blank" rel="noopener">Ver devocional completo</a>
+    </div>`;
+}
+
+async function cargarDevocionales() {
+  try {
+    const resp = await fetch("./data.json", { cache: "no-store" });
+    if (!resp.ok) throw new Error("data.json no encontrado (HTTP " + resp.status + ")");
+    const data = await resp.json();
+
+    document.getElementById("updatedNote").textContent =
+      data.generado ? "Actualizado: " + new Date(data.generado).toLocaleString("es") : "";
+
+    renderCard("card-encontacto", "En Contacto", data.encontacto, data.fecha);
+    renderCard("card-bayless", "Bayless Conley", data.bayless, data.fecha);
+    renderCard("card-kenneth", "Kenneth Copeland", data.kenneth, data.fecha);
+
+  } catch (err) {
+    console.error(err);
+    ["card-encontacto", "card-bayless", "card-kenneth"].forEach(id => {
+      const section = document.getElementById(id);
+      section.innerHTML += `<div class="error-msg">No se pudo cargar el contenido de hoy. (${escapeHtml(err.message)})</div>`;
+    });
+  }
+}
+
+cargarDevocionales();
+
+</script>
+
+
+</body>
+</html>
