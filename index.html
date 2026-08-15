@@ -197,6 +197,40 @@ body {
 
 
 /* =========================================================
+   COMPARTIR DEVOCIONAL
+   ========================================================= */
+
+.share-area {
+  text-align: center;
+  margin: 22px 0 8px;
+}
+
+.share-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 10px;
+  padding: 11px 18px;
+  background: #555555;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .2s ease, transform .1s ease;
+}
+
+.share-button:hover {
+  background: #333333;
+}
+
+.share-button:active {
+  transform: scale(.97);
+}
+
+
+/* =========================================================
    RADIO CRISTIANA
    ========================================================= */
 
@@ -561,6 +595,43 @@ function renderParrafos(parrafos) {
   return parrafos.map(p => `<p>${escapeHtml(p)}</p>`).join("");
 }
 
+
+function compartirDevocional(encodedDevo) {
+  let devo;
+
+  try {
+    devo = JSON.parse(decodeURIComponent(encodedDevo));
+  } catch (err) {
+    console.error("No se pudo preparar el devocional para compartir.", err);
+    return;
+  }
+
+  const titulo = devo.titulo || "Devocional diario";
+  const url = devo.link || window.location.href;
+  const texto = `${titulo}\n\nLee este devocional:`;
+
+  if (navigator.share) {
+    navigator.share({
+      title: titulo,
+      text: texto,
+      url: url
+    }).catch(function () {
+      /* El usuario canceló el menú de compartir. */
+    });
+    return;
+  }
+
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(url).then(function () {
+      alert("Enlace del devocional copiado.");
+    }).catch(function () {
+      window.prompt("Copia este enlace:", url);
+    });
+  } else {
+    window.prompt("Copia este enlace:", url);
+  }
+}
+
 function renderAudio(devo) {
   if (!devo.audio_url) {
     return `<div class="audio-note">Audio no disponible hoy.</div>`;
@@ -607,6 +678,14 @@ function renderCard(containerId, headerLabel, devo, fecha) {
     ${devo.titulo ? `<div class="dev-title">${escapeHtml(devo.titulo)}</div>` : ""}
     ${devo.versiculo ? `<div class="verse"><strong>${escapeHtml(devo.versiculo)}</strong></div>` : ""}
     <div class="text">${renderParrafos(devo.parrafos)}</div>
+    <div class="share-area">
+      <button
+        class="share-button"
+        type="button"
+        onclick="compartirDevocional('${encodeURIComponent(JSON.stringify(devo))}')">
+        ↗ Compartir este devocional
+      </button>
+    </div>
     ${renderAudio(devo)}
     <div class="actions">
       <a href="${escapeHtml(devo.link)}" target="_blank" rel="noopener">Ver devocional completo</a>
