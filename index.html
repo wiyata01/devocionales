@@ -268,20 +268,31 @@ body {
 }
 
 .radio-select-wrap::after {
-  content: "▼";
+  content: "▶";
   position: absolute;
-  right: 18px;
+  right: 12px;
   top: 50%;
   transform: translateY(-50%);
-  font-size: 23px;
-  font-weight: 900;
-  color: #222222;
-  pointer-events: none;
-}
 
-.radio-box select:focus {
-  outline: 3px solid #bbbbbb;
-  outline-offset: 2px;
+  width: 44px;
+  height: 44px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 50%;
+  border: 3px solid #222222;
+
+  background: #ffffff;
+  color: #222222;
+
+  font-size: 19px;
+  font-weight: 900;
+
+  pointer-events: none;
+
+  box-shadow: 0 2px 6px rgba(0,0,0,.25);
 }
 
 
