@@ -1,0 +1,20 @@
+ARCHIVOS LISTOS PARA GITHUB
+
+1. Crea un repositorio nuevo en GitHub.
+2. Sube todos los archivos y carpetas de este ZIP.
+3. Conserva exactamente esta ruta:
+   .github/workflows/update-devocionales.yml
+4. En GitHub entra a Settings > Actions > General.
+5. En Workflow permissions selecciona:
+   Read and write permissions
+6. En Settings > Pages selecciona:
+   Deploy from a branch
+   Branch: main
+   Folder: / (root)
+7. Entra a Actions y ejecuta manualmente:
+   Actualizar devocionales diarios
+8. Revisa que el workflow termine en verde.
+9. Abre la URL de GitHub Pages.
+
+El workflow se ejecuta todos los días a las 04:00 de Colombia (09:00 UTC).
+Si GitHub se demora unos minutos, puedes usar el botón Run workflow para actualizarlo manualmente.
