@@ -38,6 +38,7 @@ from urllib3.util.retry import Retry
 
 TIMEOUT = 30
 RETRY_INTERVAL_SECONDS = 20 * 60
+MAX_ATTEMPTS = 4
 
 DATA_FILE = Path("data.json")
 
@@ -1503,7 +1504,7 @@ def main():
     # BUCLE PRINCIPAL
     # ========================================================
 
-    while len(actualizados) < 3:
+    while len(actualizados) < len(FUENTES) and intento < MAX_ATTEMPTS:
 
         intento += 1
 
@@ -1627,14 +1628,27 @@ def main():
             )
 
         print()
-        print(
-            "Se volverá a intentar en "
-            "20 minutos."
-        )
+        if intento < MAX_ATTEMPTS:
+            print(
+                "Se volverá a intentar en "
+                "20 minutos."
+            )
+            time.sleep(RETRY_INTERVAL_SECONDS)
 
-        time.sleep(
-            RETRY_INTERVAL_SECONDS
+    if len(actualizados) < len(FUENTES):
+        pendientes = [
+            clave
+            for clave in FUENTES
+            if clave not in actualizados
+        ]
+        mensaje = (
+            f"No se actualizaron todas las fuentes después de "
+            f"{MAX_ATTEMPTS} intentos. Pendientes: "
+            + ", ".join(pendientes)
         )
+        print()
+        print(f"ERROR: {mensaje}", file=sys.stderr)
+        raise RuntimeError(mensaje)
 
 
 # ============================================================

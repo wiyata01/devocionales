@@ -17,4 +17,6 @@ ARCHIVOS LISTOS PARA GITHUB
 9. Abre la URL de GitHub Pages.
 
 El workflow se ejecuta todos los días a las 04:00 de Colombia (09:00 UTC).
-Si GitHub se demora unos minutos, puedes usar el botón Run workflow para actualizarlo manualmente.
+El scraper hace hasta 4 intentos, separados por 20 minutos. Si una fuente no publica
+contenido o cambia su página, el workflow termina con error y muestra el nombre
+de la fuente pendiente en los registros. Puedes usar Run workflow más tarde.
