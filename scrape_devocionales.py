@@ -185,6 +185,16 @@ def load_previous():
 # EN CONTACTO
 # ============================================================
 
+
+    # --------------------------------------------------------
+    # TEXTO
+    # --------------------------------------------------------
+
+    
+# ============================================================
+# EN CONTACTO
+# ============================================================
+
 def scrape_encontacto():
 
     url = (
@@ -202,15 +212,15 @@ def scrape_encontacto():
     html = str(soup)
 
     # --------------------------------------------------------
-    # TÍTULO
+    # TÍTULO DEL DEVOCIONAL
     # --------------------------------------------------------
 
     title = ""
 
+    # Primero buscamos el H1.
     h1 = soup.find("h1")
 
     if h1:
-
         title = clean(
             h1.get_text(
                 " ",
@@ -227,7 +237,6 @@ def scrape_encontacto():
     h2 = soup.find("h2")
 
     if h2:
-
         subtitle = clean(
             h2.get_text(
                 " ",
@@ -236,7 +245,39 @@ def scrape_encontacto():
         )
 
     # --------------------------------------------------------
-    # VERSÍCULO
+    # FECHA
+    #
+    # La página puede mostrar la fecha como texto.
+    # La guardamos para identificar el contenido actual.
+    # --------------------------------------------------------
+
+    fecha_fuente = ""
+
+    # Buscar una fecha del tipo:
+    # 20 de agosto de 2026
+
+    patron_fecha = re.compile(
+        r"\b\d{1,2}\s+de\s+"
+        r"(?:enero|febrero|marzo|abril|mayo|junio|"
+        r"julio|agosto|septiembre|octubre|noviembre|diciembre)"
+        r"\s+de\s+\d{4}\b",
+        re.I
+    )
+
+    fecha_match = patron_fecha.search(
+        soup.get_text(
+            " ",
+            strip=True
+        )
+    )
+
+    if fecha_match:
+        fecha_fuente = clean(
+            fecha_match.group(0)
+        )
+
+    # --------------------------------------------------------
+    # VERSÍCULO / REFERENCIA BÍBLICA
     # --------------------------------------------------------
 
     verse = ""
@@ -258,6 +299,27 @@ def scrape_encontacto():
             )
         )
 
+    # Si el enlace no contiene el texto,
+    # buscamos referencias bíblicas visibles.
+
+    if not verse:
+
+        texto_pagina = soup.get_text(
+            " ",
+            strip=True
+        )
+
+        match_versiculo = re.search(
+            r"\bGálatas\s+5\.17-21\b",
+            texto_pagina,
+            re.I
+        )
+
+        if match_versiculo:
+            verse = clean(
+                match_versiculo.group(0)
+            )
+
     # --------------------------------------------------------
     # AUDIO
     # --------------------------------------------------------
@@ -271,60 +333,206 @@ def scrape_encontacto():
     )
 
     # --------------------------------------------------------
-    # TEXTO
+    # LOCALIZAR EL CONTENEDOR REAL DEL DEVOCIONAL
+    #
+    # No debemos tomar todos los <p> de la página.
+    # En Contacto tiene navegación, footer y otras
+    # secciones que NO pertenecen al devocional.
+    # --------------------------------------------------------
+
+    contenido = None
+
+    # Buscamos primero elementos que tengan el título actual.
+
+    if title:
+
+        titulo_elemento = soup.find(
+            string=re.compile(
+                re.escape(title),
+                re.I
+            )
+        )
+
+        if titulo_elemento:
+
+            padre = titulo_elemento.parent
+
+            # Subimos algunos niveles buscando un contenedor
+            # que tenga varios párrafos.
+
+            for _ in range(6):
+
+                if padre is None:
+                    break
+
+                posibles = padre.find_all(
+                    ["p", "li"]
+                )
+
+                if len(posibles) >= 2:
+
+                    contenido = padre
+                    break
+
+                padre = padre.parent
+
+    # --------------------------------------------------------
+    # EXTRAER PÁRRAFOS DEL DEVOCIONAL
     # --------------------------------------------------------
 
     paragraphs = []
 
-    for tag in soup.find_all(
-        ["p", "li"]
-    ):
+    if contenido:
 
-        text = clean(
-            tag.get_text(
-                " ",
-                strip=True
+        for tag in contenido.find_all(
+            ["p", "li"]
+        ):
+
+            text = clean(
+                tag.get_text(
+                    " ",
+                    strip=True
+                )
             )
-        )
 
-        if not text:
-            continue
+            if not text:
+                continue
 
-        if text == verse:
-            continue
+            low = text.lower()
+
+            # No incluir elementos de navegación,
+            # suscripción o footer.
+
+            if any(
+                x in low
+                for x in (
+                    "suscríbase",
+                    "suscribirse",
+                    "correo electrónico",
+                    "opciones de lectura",
+                    "biblia en un año",
+                    "compartir",
+                    "share",
+                )
+            ):
+                continue
+
+            if len(text) < 25:
+                continue
+
+            # Evitar repetir la referencia bíblica
+            # como párrafo.
+
+            if (
+                verse
+                and text == verse
+            ):
+                continue
+
+            paragraphs.append(text)
+
+    # --------------------------------------------------------
+    # RESPALDO
+    #
+    # Si la estructura HTML cambia, hacemos una segunda
+    # búsqueda, pero seguimos evitando footer/navegación.
+    # --------------------------------------------------------
+
+    if not paragraphs:
+
+        for tag in soup.find_all("p"):
+
+            text = clean(
+                tag.get_text(
+                    " ",
+                    strip=True
+                )
+            )
+
+            if not text:
+                continue
+
+            low = text.lower()
+
+            if any(
+                x in low
+                for x in (
+                    "suscríbase",
+                    "suscribirse",
+                    "correo electrónico",
+                    "opciones de lectura",
+                    "biblia en un año",
+                    "compartir",
+                    "share",
+                )
+            ):
+                continue
+
+            if len(text) < 40:
+                continue
+
+            if (
+                verse
+                and text == verse
+            ):
+                continue
+
+            paragraphs.append(text)
+
+    # --------------------------------------------------------
+    # LIMPIEZA FINAL
+    # --------------------------------------------------------
+
+    limpios = []
+
+    for text in paragraphs:
 
         low = text.lower()
 
-        if "biblia en un año" in low:
-            break
+        # No permitir que contenido posterior
+        # de la página se mezcle con el devocional.
 
         if any(
             x in low
             for x in (
-                "suscríbase",
-                "suscribirse",
-                "correo electrónico",
+                "también te puede interesar",
+                "contenido relacionado",
+                "suscríbete",
+                "síguenos",
+                "síganos",
+                "recibe nuestro",
             )
         ):
-            continue
+            break
 
-        if len(text) < 25:
-            continue
+        limpios.append(text)
 
-        paragraphs.append(text)
+    paragraphs = limpios[:10]
 
-    paragraphs = paragraphs[:10]
+    # --------------------------------------------------------
+    # VALIDACIÓN
+    # --------------------------------------------------------
 
-    if not title or not paragraphs:
-
+    if not title:
         raise RuntimeError(
-            "No se pudo extraer título o texto "
+            "No se pudo extraer el título "
             "de En Contacto"
         )
+
+    if not paragraphs:
+        raise RuntimeError(
+            "No se pudo extraer el texto "
+            "del devocional de En Contacto"
+        )
+
+    # --------------------------------------------------------
+    # RESULTADO
+    # --------------------------------------------------------
 
     return {
         "titulo": title,
         "subtitulo": subtitle,
+        "fecha_fuente": fecha_fuente,
         "versiculo": verse,
         "parrafos": paragraphs,
         "audio_url": audio,
@@ -334,7 +542,7 @@ def scrape_encontacto():
             "lea/devocionales-diarios"
         ),
     }
-
+        
 
 # ============================================================
 # BAYLESS CONLEY
