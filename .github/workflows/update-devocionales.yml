@@ -2,13 +2,18 @@ name: Actualizar devocionales diarios
 
 on:
   schedule:
-    # 02:10 AM hora Colombia = 07:10 UTC
+    # 02:10 en Colombia = 07:10 UTC
     - cron: "10 7 * * *"
 
-  workflow_dispatch:
+  # Permite ejecutarlo manualmente desde Actions
+  workflow_dispatch: {}
 
 permissions:
   contents: write
+
+concurrency:
+  group: actualizar-devocionales
+  cancel-in-progress: false
 
 jobs:
   actualizar:
@@ -19,36 +24,85 @@ jobs:
       - name: Clonar repositorio
         uses: actions/checkout@v4
 
-      - name: Instalar Python
+      - name: Configurar Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: "pip"
 
       - name: Instalar dependencias
         run: |
-          pip install requests beautifulsoup4
+          python -m pip install --upgrade pip
+          python -m pip install requests beautifulsoup4
 
-      # ---------------------------------------------------------
-      # Intentos cada 20 minutos
-      # ---------------------------------------------------------
-
-      - name: Buscar los 3 devocionales actualizados
+      - name: Actualizar devocionales
         run: |
-          python3 scrape_devocionales.py --reintentos
+          python -u scrape_devocionales.py
 
-      # ---------------------------------------------------------
-      # Publicar data.json
-      # ---------------------------------------------------------
+      - name: Validar data.json
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("data.json")
+
+          if not path.exists():
+              raise SystemExit("ERROR: no existe data.json")
+
+          data = json.loads(
+              path.read_text(encoding="utf-8")
+          )
+
+          if not isinstance(data, dict):
+              raise SystemExit(
+                  "ERROR: data.json no contiene un objeto JSON"
+              )
+
+          if not data.get("fecha"):
+              raise SystemExit(
+                  "ERROR: data.json no tiene fecha"
+              )
+
+          for key in (
+              "encontacto",
+              "bayless",
+              "kenneth"
+          ):
+
+              item = data.get(key)
+
+              if not isinstance(item, dict):
+                  raise SystemExit(
+                      f"ERROR: {key} no contiene un objeto válido"
+                  )
+
+              if not item.get("titulo"):
+                  raise SystemExit(
+                      f"ERROR: {key} no tiene título"
+                  )
+
+              if not isinstance(
+                  item.get("parrafos"),
+                  list
+              ) or not any(item["parrafos"]):
+
+                  raise SystemExit(
+                      f"ERROR: {key} no tiene texto"
+                  )
+
+          print("data.json válido")
+          PY
 
       - name: Publicar data.json actualizado
         run: |
           git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.email "41898282+users.noreply.github.com"
 
           git add data.json
 
           if git diff --staged --quiet; then
-            echo "No hay cambios para publicar."
+            echo "Sin cambios en data.json"
           else
             git commit -m "Actualizar devocionales $(date -u +%Y-%m-%d)"
             git push
