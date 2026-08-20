@@ -2,69 +2,53 @@ name: Actualizar devocionales diarios
 
 on:
   schedule:
-    # 09:00 UTC = 04:00 en Colombia (America/Bogota)
-    - cron: "0 9 * * *"
-  workflow_dispatch: {}
+    # 02:10 AM hora Colombia = 07:10 UTC
+    - cron: "10 7 * * *"
+
+  workflow_dispatch:
 
 permissions:
   contents: write
-
-concurrency:
-  group: actualizar-devocionales
-  cancel-in-progress: false
 
 jobs:
   actualizar:
     runs-on: ubuntu-latest
 
     steps:
+
       - name: Clonar repositorio
         uses: actions/checkout@v4
 
-      - name: Configurar Python
+      - name: Instalar Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-        
 
       - name: Instalar dependencias
-        run: python -m pip install --upgrade requests beautifulsoup4
-
-      - name: Ejecutar scraper
-        run: python -u scrape_devocionales.py
-
-      - name: Validar data.json
         run: |
-          python - <<'PY'
-          import json
-          from pathlib import Path
+          pip install requests beautifulsoup4
 
-          path = Path("data.json")
-          data = json.loads(path.read_text(encoding="utf-8"))
+      # ---------------------------------------------------------
+      # Intentos cada 20 minutos
+      # ---------------------------------------------------------
 
-          if not isinstance(data, dict):
-              raise SystemExit("data.json no contiene un objeto JSON")
+      - name: Buscar los 3 devocionales actualizados
+        run: |
+          python3 scrape_devocionales.py --reintentos
 
-          if not data.get("fecha"):
-              raise SystemExit("data.json no tiene fecha")
-
-          for key in ("encontacto", "bayless", "kenneth"):
-              item = data.get(key)
-              if not isinstance(item, dict) or not item.get("titulo"):
-                  raise SystemExit(f"{key} no tiene un título válido")
-              if not isinstance(item.get("parrafos"), list) or not any(item["parrafos"]):
-                  raise SystemExit(f"{key} no tiene texto válido")
-
-          print("data.json válido")
-          PY
+      # ---------------------------------------------------------
+      # Publicar data.json
+      # ---------------------------------------------------------
 
       - name: Publicar data.json actualizado
         run: |
           git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
           git add data.json
+
           if git diff --staged --quiet; then
-            echo "Sin cambios en data.json"
+            echo "No hay cambios para publicar."
           else
             git commit -m "Actualizar devocionales $(date -u +%Y-%m-%d)"
             git push
