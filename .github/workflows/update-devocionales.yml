@@ -2,11 +2,18 @@ name: Actualizar devocionales diarios
 
 on:
   schedule:
-    # 02:10 en Colombia = 07:10 UTC
+    # Primera ejecución: 2:10 AM hora de Colombia
     - cron: "10 7 * * *"
 
-  # Permite ejecutarlo manualmente desde Actions
-  workflow_dispatch: {}
+    # Luego cada 20 minutos hasta las 4:10 AM Colombia
+    - cron: "30 7 * * *"
+    - cron: "50 7 * * *"
+    - cron: "10 8 * * *"
+    - cron: "30 8 * * *"
+    - cron: "50 8 * * *"
+    - cron: "10 9 * * *"
+
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -16,28 +23,53 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+
   actualizar:
+
     runs-on: ubuntu-latest
 
     steps:
 
+      # ---------------------------------------------------------
+      # 1. Descargar el repositorio
+      # ---------------------------------------------------------
+
       - name: Clonar repositorio
         uses: actions/checkout@v4
+
+
+      # ---------------------------------------------------------
+      # 2. Configurar Python
+      # ---------------------------------------------------------
 
       - name: Configurar Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-          cache: "pip"
+
+
+      # ---------------------------------------------------------
+      # 3. Instalar las librerías necesarias
+      # ---------------------------------------------------------
 
       - name: Instalar dependencias
         run: |
           python -m pip install --upgrade pip
           python -m pip install requests beautifulsoup4
 
-      - name: Actualizar devocionales
+
+      # ---------------------------------------------------------
+      # 4. Ejecutar el scraper
+      # ---------------------------------------------------------
+
+      - name: Ejecutar scraper
         run: |
           python -u scrape_devocionales.py
+
+
+      # ---------------------------------------------------------
+      # 5. Comprobar que data.json existe y es válido
+      # ---------------------------------------------------------
 
       - name: Validar data.json
         run: |
@@ -50,9 +82,14 @@ jobs:
           if not path.exists():
               raise SystemExit("ERROR: no existe data.json")
 
-          data = json.loads(
-              path.read_text(encoding="utf-8")
-          )
+          try:
+              data = json.loads(
+                  path.read_text(encoding="utf-8")
+              )
+          except Exception as e:
+              raise SystemExit(
+                  f"ERROR: data.json no es JSON válido: {e}"
+              )
 
           if not isinstance(data, dict):
               raise SystemExit(
@@ -74,7 +111,7 @@ jobs:
 
               if not isinstance(item, dict):
                   raise SystemExit(
-                      f"ERROR: {key} no contiene un objeto válido"
+                      f"ERROR: {key} no contiene datos"
                   )
 
               if not item.get("titulo"):
@@ -85,25 +122,68 @@ jobs:
               if not isinstance(
                   item.get("parrafos"),
                   list
-              ) or not any(item["parrafos"]):
+              ):
+                  raise SystemExit(
+                      f"ERROR: {key} no tiene lista de párrafos"
+                  )
 
+              if not any(
+                  str(p).strip()
+                  for p in item["parrafos"]
+              ):
                   raise SystemExit(
                       f"ERROR: {key} no tiene texto"
                   )
 
+          print("====================================")
           print("data.json válido")
+          print("Fecha:", data.get("fecha"))
+          print("En Contacto:", data["encontacto"]["titulo"])
+          print("Bayless:", data["bayless"]["titulo"])
+          print("Kenneth:", data["kenneth"]["titulo"])
+          print("====================================")
           PY
+
+
+      # ---------------------------------------------------------
+      # 6. Mostrar si realmente hubo cambios
+      # ---------------------------------------------------------
+
+      - name: Revisar cambios
+        run: |
+          git status
+          git diff -- data.json
+
+
+      # ---------------------------------------------------------
+      # 7. Guardar data.json en GitHub
+      # ---------------------------------------------------------
 
       - name: Publicar data.json actualizado
         run: |
+
           git config user.name "github-actions[bot]"
-          git config user.email "41898282+users.noreply.github.com"
+
+          git config user.email \
+            "41898282+github-actions[bot]@users.noreply.github.com"
 
           git add data.json
 
           if git diff --staged --quiet; then
-            echo "Sin cambios en data.json"
+
+            echo "===================================="
+            echo "SIN CAMBIOS EN data.json"
+            echo "===================================="
+
           else
-            git commit -m "Actualizar devocionales $(date -u +%Y-%m-%d)"
+
+            git commit \
+              -m "Actualizar devocionales $(date -u +%Y-%m-%d-%H%M)"
+
             git push
+
+            echo "===================================="
+            echo "data.json ACTUALIZADO Y PUBLICADO"
+            echo "===================================="
+
           fi
