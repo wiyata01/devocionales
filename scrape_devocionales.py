@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
+
 """
-Actualizador de los tres devocionales diarios.
+ACTUALIZADOR DE DEVOCIONALES DIARIOS
 
 Fuentes:
 1. En Contacto
@@ -8,12 +9,13 @@ Fuentes:
 3. Kenneth Copeland
 
 Características:
-- No utiliza cache_bust como argumento de requests.
-- Añade un parámetro de caché a la URL.
-- Busca contenido real del día.
-- Cada fuente conserva su propia fecha.
-- No acepta contenido viejo como actualización nueva.
+- Detecta la fecha actual de Colombia.
+- No acepta contenido de días anteriores.
 - Conserva el último contenido válido si una fuente falla.
+- En Contacto busca específicamente el bloque correspondiente a la fecha.
+- KCM acepta fechas del tipo "agosto 21".
+- Bayless tiene conexión directa sin añadir parámetros de caché.
+- No mantiene GitHub Actions ejecutándose indefinidamente.
 """
 
 import datetime as dt
@@ -22,7 +24,7 @@ import re
 import sys
 import time
 from pathlib import Path
-from urllib.parse import urlencode, urljoin, urlparse, urlunparse
+from urllib.parse import urlencode, urlparse, urlunparse
 
 import requests
 from bs4 import BeautifulSoup
@@ -38,14 +40,16 @@ DATA_FILE = Path("data.json")
 
 TIMEOUT = 30
 
-INTERVALO_REINTENTO = 20 * 60
+# GitHub Actions hará nuevas ejecuciones según el workflow.
+# No necesitamos dejar un proceso infinito durante horas.
+MAX_INTENTOS = 1
 
 HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
         "AppleWebKit/537.36 (KHTML, like Gecko) "
         "Chrome/139.0.0.0 Safari/537.36 "
-        "DevocionalesDiariosBot/3.0"
+        "DevocionalesDiariosBot/4.0"
     ),
     "Accept": (
         "text/html,application/xhtml+xml,application/xml;"
@@ -62,7 +66,7 @@ HEADERS = {
 # ============================================================
 
 def crear_sesion():
-    s = requests.Session()
+    session = requests.Session()
 
     retry = Retry(
         total=3,
@@ -80,19 +84,19 @@ def crear_sesion():
         pool_maxsize=10,
     )
 
-    s.mount("https://", adapter)
-    s.mount("http://", adapter)
+    session.mount("https://", adapter)
+    session.mount("http://", adapter)
 
-    s.headers.update(HEADERS)
+    session.headers.update(HEADERS)
 
-    return s
+    return session
 
 
 S = crear_sesion()
 
 
 # ============================================================
-# FECHA
+# MESES
 # ============================================================
 
 MESES = [
@@ -110,13 +114,17 @@ MESES = [
     "diciembre",
 ]
 
+MESES_MAP = {
+    nombre: numero
+    for numero, nombre in enumerate(MESES, start=1)
+}
+
+
+# ============================================================
+# FECHA DE COLOMBIA
+# ============================================================
 
 def fecha_bogota():
-    """
-    Obtiene la fecha de Colombia sin depender de la zona horaria
-    configurada en el runner.
-    """
-
     try:
         from zoneinfo import ZoneInfo
 
@@ -124,10 +132,14 @@ def fecha_bogota():
             ZoneInfo("America/Bogota")
         )
 
-    except Exception:
-        ahora = dt.datetime.now(dt.timezone.utc)
+        return ahora.date()
 
-    return ahora.date()
+    except Exception:
+        ahora = dt.datetime.now(
+            dt.timezone.utc
+        )
+
+        return ahora.date()
 
 
 def fecha_es(fecha):
@@ -143,9 +155,13 @@ def fecha_iso(fecha):
 
 
 def ahora_utc():
-    return dt.datetime.now(
-        dt.timezone.utc
-    ).isoformat().replace("+00:00", "Z")
+    return (
+        dt.datetime.now(
+            dt.timezone.utc
+        )
+        .isoformat()
+        .replace("+00:00", "Z")
+    )
 
 
 # ============================================================
@@ -167,20 +183,19 @@ def clean(text):
 
 def normalizar_url_sin_cache(url):
     """
-    Elimina parámetros temporales de caché.
+    Elimina parámetros temporales.
     """
 
     try:
         parsed = urlparse(url)
 
+        from urllib.parse import parse_qsl
+
         params = []
 
-        for key, value in (
-            __import__("urllib.parse", fromlist=["parse_qsl"])
-            .parse_qsl(
-                parsed.query,
-                keep_blank_values=True
-            )
+        for key, value in parse_qsl(
+            parsed.query,
+            keep_blank_values=True
         ):
             if key.lower() not in {
                 "_dc",
@@ -189,8 +204,11 @@ def normalizar_url_sin_cache(url):
                 "cb",
                 "timestamp",
                 "t",
+                "_devocionales_cache",
             }:
-                params.append((key, value))
+                params.append(
+                    (key, value)
+                )
 
         query = urlencode(params)
 
@@ -211,16 +229,17 @@ def normalizar_url_sin_cache(url):
 
 def url_sin_cache(url):
     """
-    Añade un parámetro único para evitar que un CDN/proxy
-    entregue una copia vieja de la página.
-
-    Esto NO se pasa a requests como cache_bust.
-    Se modifica correctamente la URL.
+    Añade cache bust solamente a las fuentes
+    que lo permiten.
     """
 
     url = normalizar_url_sin_cache(url)
 
-    separator = "&" if "?" in url else "?"
+    separator = (
+        "&"
+        if "?" in url
+        else "?"
+    )
 
     return (
         f"{url}"
@@ -229,12 +248,26 @@ def url_sin_cache(url):
     )
 
 
-def get(url):
+def get(url, cache=True):
     """
-    Descarga una página evitando caché mediante la URL.
+    Descarga una página.
+
+    cache=True:
+        añade parámetro temporal.
+
+    cache=False:
+        descarga la URL original.
+
+    Bayless utiliza cache=False porque su servidor
+    puede devolver HTTP 500 cuando recibe parámetros
+    desconocidos.
     """
 
-    final_url = url_sin_cache(url)
+    final_url = (
+        url_sin_cache(url)
+        if cache
+        else url
+    )
 
     response = S.get(
         final_url,
@@ -247,8 +280,11 @@ def get(url):
     return response
 
 
-def soup(url):
-    response = get(url)
+def soup(url, cache=True):
+    response = get(
+        url,
+        cache=cache
+    )
 
     return BeautifulSoup(
         response.text,
@@ -257,6 +293,7 @@ def soup(url):
 
 
 def extract_mp3(html, patterns):
+
     for pattern in patterns:
 
         match = re.search(
@@ -281,6 +318,7 @@ def extract_mp3(html, patterns):
 
 
 def valid(item):
+
     return (
         isinstance(item, dict)
         and bool(item.get("titulo"))
@@ -290,21 +328,30 @@ def valid(item):
 
 
 # ============================================================
-# FECHAS EN TEXTO
+# DETECCIÓN DE FECHAS
 # ============================================================
 
 def detectar_fecha(texto):
     """
-    Detecta fechas como:
+    Detecta:
 
-    20 de agosto de 2026
     21 de agosto de 2026
+    21 de agosto
+    agosto 21
+    agosto 21, 2026
+    21 agosto 2026
     """
 
     if not texto:
         return None
 
-    patron = re.compile(
+    texto = clean(texto).lower()
+
+    # --------------------------------------------------------
+    # 21 de agosto de 2026
+    # --------------------------------------------------------
+
+    patron1 = re.compile(
         r"\b"
         r"(\d{1,2})"
         r"\s+de\s+"
@@ -313,47 +360,161 @@ def detectar_fecha(texto):
         r"\s+de\s+"
         r"(\d{4})"
         r"\b",
-        flags=re.I,
+        re.I,
     )
 
-    match = patron.search(texto)
+    match = patron1.search(texto)
 
-    if not match:
-        return None
+    if match:
 
-    dia = int(match.group(1))
-
-    mes_nombre = match.group(2).lower()
-
-    año = int(match.group(3))
-
-    try:
-        mes = MESES.index(
-            mes_nombre
-        ) + 1
-
-        return dt.date(
-            año,
-            mes,
-            dia
+        dia = int(match.group(1))
+        mes = MESES_MAP.get(
+            match.group(2).lower()
         )
+        ano = int(match.group(3))
 
-    except Exception:
-        return None
+        if mes:
 
+            try:
+                return dt.date(
+                    ano,
+                    mes,
+                    dia
+                )
+            except ValueError:
+                pass
 
-def fecha_desde_elemento(elemento):
-    if not elemento:
-        return None
+    # --------------------------------------------------------
+    # 21 agosto 2026
+    # --------------------------------------------------------
 
-    texto = clean(
-        elemento.get_text(
-            " ",
-            strip=True
-        )
+    patron2 = re.compile(
+        r"\b"
+        r"(\d{1,2})"
+        r"\s+"
+        r"(enero|febrero|marzo|abril|mayo|junio|"
+        r"julio|agosto|septiembre|octubre|noviembre|diciembre)"
+        r"\s+"
+        r"(\d{4})"
+        r"\b",
+        re.I,
     )
 
-    return detectar_fecha(texto)
+    match = patron2.search(texto)
+
+    if match:
+
+        dia = int(match.group(1))
+        mes = MESES_MAP.get(
+            match.group(2).lower()
+        )
+        ano = int(match.group(3))
+
+        if mes:
+
+            try:
+                return dt.date(
+                    ano,
+                    mes,
+                    dia
+                )
+            except ValueError:
+                pass
+
+    # --------------------------------------------------------
+    # agosto 21, 2026
+    # --------------------------------------------------------
+
+    patron3 = re.compile(
+        r"\b"
+        r"(enero|febrero|marzo|abril|mayo|junio|"
+        r"julio|agosto|septiembre|octubre|noviembre|diciembre)"
+        r"\s+"
+        r"(\d{1,2})"
+        r"(?:,\s*|\s+)"
+        r"(\d{4})"
+        r"\b",
+        re.I,
+    )
+
+    match = patron3.search(texto)
+
+    if match:
+
+        mes = MESES_MAP.get(
+            match.group(1).lower()
+        )
+        dia = int(match.group(2))
+        ano = int(match.group(3))
+
+        if mes:
+
+            try:
+                return dt.date(
+                    ano,
+                    mes,
+                    dia
+                )
+            except ValueError:
+                pass
+
+    # --------------------------------------------------------
+    # agosto 21
+    #
+    # KCM actualmente muestra este formato.
+    # El año se determina por el contexto de la ejecución.
+    # --------------------------------------------------------
+
+    patron4 = re.compile(
+        r"\b"
+        r"(enero|febrero|marzo|abril|mayo|junio|"
+        r"julio|agosto|septiembre|octubre|noviembre|diciembre)"
+        r"\s+"
+        r"(\d{1,2})"
+        r"\b",
+        re.I,
+    )
+
+    match = patron4.search(texto)
+
+    if match:
+
+        mes = MESES_MAP.get(
+            match.group(1).lower()
+        )
+        dia = int(match.group(2))
+
+        if mes:
+
+            ano_actual = fecha_bogota().year
+
+            try:
+                return dt.date(
+                    ano_actual,
+                    mes,
+                    dia
+                )
+            except ValueError:
+                pass
+
+    return None
+
+
+# ============================================================
+# DETECTAR FECHA ACTUAL
+# ============================================================
+
+def contiene_fecha_del_dia(texto, hoy):
+
+    if not texto:
+        return False
+
+    fecha = detectar_fecha(texto)
+
+    return (
+        fecha is not None
+        and fecha == hoy
+    )
 
 
 # ============================================================
@@ -361,18 +522,6 @@ def fecha_desde_elemento(elemento):
 # ============================================================
 
 def extraer_encontacto():
-    """
-    Extrae únicamente el devocional actual de En Contacto.
-
-    La página contiene además:
-    - menús
-    - radio
-    - artículos
-    - destacados
-    - contenidos relacionados
-
-    Por eso no debemos recorrer todos los <p> indiscriminadamente.
-    """
 
     url = (
         "https://www.encontactoglobal.org/"
@@ -381,22 +530,36 @@ def extraer_encontacto():
 
     response = get(url)
 
-    final_url = response.url
-
     s = BeautifulSoup(
         response.text,
         "html.parser"
     )
 
+    hoy = fecha_bogota()
+
+    fecha_hoy_texto = fecha_es(hoy).lower()
+
     # --------------------------------------------------------
-    # TÍTULO
+    # ENCONTRAR EL BLOQUE DE HOY
+    # --------------------------------------------------------
+    #
+    # Este es el cambio más importante.
+    #
+    # Antes el scraper buscaba el primer h2/h3 corto,
+    # lo que hacía que encontrara:
+    #
+    # "Cómo forjar relaciones sólidas"
+    #
+    # que pertenece a "El Mensaje de esta Semana".
+    #
+    # Ahora buscamos primero el texto que contiene la
+    # fecha de HOY y luego buscamos el encabezado asociado.
     # --------------------------------------------------------
 
-    titulo = ""
+    fecha_elemento = None
 
-    # Buscar encabezados razonables.
     for tag in s.find_all(
-        ["h1", "h2", "h3"]
+        ["time", "p", "div", "span", "article"]
     ):
 
         texto = clean(
@@ -409,24 +572,126 @@ def extraer_encontacto():
         if not texto:
             continue
 
-        if texto.lower() in {
-            "devocionales diarios",
-            "meditaciones diarias",
-            "en contacto",
-        }:
-            continue
+        if fecha_hoy_texto in texto.lower():
 
-        # Evitar títulos demasiado generales.
-        if len(texto) < 4:
-            continue
+            # Evitar contenedores gigantes.
+            if len(texto) < 1000:
 
-        titulo = texto
+                fecha_elemento = tag
+                break
 
-        # Preferimos títulos cortos de artículo.
-        if len(texto) < 100:
-            break
+    titulo = ""
 
-    # Si no se encontró, usar OpenGraph.
+    # --------------------------------------------------------
+    # BUSCAR TÍTULO CERCA DE LA FECHA
+    # --------------------------------------------------------
+
+    if fecha_elemento:
+
+        # Buscar encabezados dentro del contenedor.
+        padre = fecha_elemento
+
+        for _ in range(5):
+
+            if not padre:
+                break
+
+            for tag in padre.find_all(
+                ["h1", "h2", "h3", "h4"]
+            ):
+
+                texto = clean(
+                    tag.get_text(
+                        " ",
+                        strip=True
+                    )
+                )
+
+                if not texto:
+                    continue
+
+                if texto.lower() in {
+                    "meditaciones diarias",
+                    "devocionales diarios",
+                    "meditación diaria",
+                    "en contacto",
+                }:
+                    continue
+
+                if (
+                    len(texto) >= 4
+                    and len(texto) < 150
+                ):
+                    titulo = texto
+                    break
+
+            if titulo:
+                break
+
+            padre = padre.parent
+
+    # --------------------------------------------------------
+    # SEGUNDA ESTRATEGIA:
+    # RECORRER ENCABEZADOS Y BUSCAR EL QUE TENGA LA FECHA
+    # DEL DÍA EN SU CONTENEDOR.
+    # --------------------------------------------------------
+
+    if not titulo:
+
+        for tag in s.find_all(
+            ["h1", "h2", "h3", "h4"]
+        ):
+
+            texto = clean(
+                tag.get_text(
+                    " ",
+                    strip=True
+                )
+            )
+
+            if not texto:
+                continue
+
+            if texto.lower() in {
+                "meditaciones diarias",
+                "devocionales diarios",
+                "meditación diaria",
+                "en contacto",
+            }:
+                continue
+
+            padre = tag
+
+            for _ in range(5):
+
+                if not padre:
+                    break
+
+                bloque = clean(
+                    padre.get_text(
+                        " ",
+                        strip=True
+                    )
+                )
+
+                if (
+                    fecha_hoy_texto in
+                    bloque.lower()
+                ):
+
+                    titulo = texto
+                    break
+
+                padre = padre.parent
+
+            if titulo:
+                break
+
+    # --------------------------------------------------------
+    # TERCERA ESTRATEGIA:
+    # OPEN GRAPH
+    # --------------------------------------------------------
+
     if not titulo:
 
         og = s.find(
@@ -437,18 +702,29 @@ def extraer_encontacto():
         )
 
         if og:
-            titulo = clean(
+
+            posible = clean(
                 og.get(
                     "content",
                     ""
                 )
             )
 
+            if posible:
+
+                titulo = posible
+
+    if not titulo:
+
+        raise RuntimeError(
+            "En Contacto: no se encontró "
+            "el título del devocional actual."
+        )
+
     # --------------------------------------------------------
-    # BUSCAR EL BLOQUE DEL DEVOCIONAL
+    # ENCONTRAR EL ENCABEZADO REAL
     # --------------------------------------------------------
 
-    # Encontramos el encabezado cuyo texto coincide con el título.
     titulo_elemento = None
 
     for tag in s.find_all(
@@ -463,9 +739,7 @@ def extraer_encontacto():
         )
 
         if (
-            texto
-            and titulo
-            and texto.lower()
+            texto.lower()
             == titulo.lower()
         ):
 
@@ -476,19 +750,18 @@ def extraer_encontacto():
     # FECHA
     # --------------------------------------------------------
 
-    fecha = None
+    fecha = hoy
 
     if titulo_elemento:
 
-        # Buscar fecha dentro del contenedor cercano.
         padre = titulo_elemento
 
-        for _ in range(5):
+        for _ in range(7):
 
             if not padre:
                 break
 
-            texto_padre = clean(
+            texto = clean(
                 padre.get_text(
                     " ",
                     strip=True
@@ -496,7 +769,7 @@ def extraer_encontacto():
             )
 
             encontrada = detectar_fecha(
-                texto_padre
+                texto
             )
 
             if encontrada:
@@ -506,17 +779,25 @@ def extraer_encontacto():
 
             padre = padre.parent
 
-    # Si no apareció cerca del título,
-    # buscar la primera fecha de la página.
-    if not fecha:
+    # Como ya sabemos que encontramos el bloque de hoy,
+    # aceptamos explícitamente la fecha actual.
+    if fecha != hoy:
 
-        fecha = detectar_fecha(
-            clean(
-                s.get_text(
-                    " ",
-                    strip=True
-                )
+        texto_total = clean(
+            s.get_text(
+                " ",
+                strip=True
             )
+        )
+
+        if fecha_hoy_texto in texto_total.lower():
+            fecha = hoy
+
+    if fecha != hoy:
+
+        raise RuntimeError(
+            "En Contacto: el bloque encontrado "
+            "no corresponde a la fecha actual."
         )
 
     # --------------------------------------------------------
@@ -527,8 +808,6 @@ def extraer_encontacto():
 
     if titulo_elemento:
 
-        # Buscar el primer texto razonable
-        # después del título.
         for elemento in titulo_elemento.find_all_next(
             ["p", "div"],
             limit=20
@@ -544,16 +823,20 @@ def extraer_encontacto():
             if not texto:
                 continue
 
-            if fecha_es(fecha).lower() in texto.lower() if fecha else False:
+            if (
+                fecha_hoy_texto
+                in texto.lower()
+            ):
                 continue
 
             if len(texto) < 25:
                 continue
 
-            # Evitar elementos de navegación.
+            low = texto.lower()
+
             if any(
-                palabra in texto.lower()
-                for palabra in (
+                x in low
+                for x in (
                     "opciones de lectura",
                     "compartir",
                     "escuchar",
@@ -563,7 +846,6 @@ def extraer_encontacto():
                 continue
 
             subtitulo = texto
-
             break
 
     # --------------------------------------------------------
@@ -572,51 +854,42 @@ def extraer_encontacto():
 
     versiculo = ""
 
-    # Primero buscar enlace a BibleGateway.
-    enlace_biblia = s.find(
-        "a",
-        href=re.compile(
-            r"biblegateway",
-            re.I
+    texto_total = clean(
+        s.get_text(
+            " ",
+            strip=True
         )
     )
 
-    if enlace_biblia:
+    patron_versiculo = re.search(
+        r"\b"
+        r"(Génesis|Éxodo|Levítico|Números|"
+        r"Deuteronomio|Josué|Jueces|Rut|"
+        r"Samuel|Reyes|Crónicas|Esdras|"
+        r"Nehemías|Ester|Job|Salmos|"
+        r"Proverbios|Eclesiastés|Cantares|"
+        r"Isaías|Jeremías|Lamentaciones|"
+        r"Ezequiel|Daniel|Oseas|Joel|Amós|"
+        r"Abdías|Jonás|Miqueas|Nahúm|Habacuc|"
+        r"Sofonías|Hageo|Zacarías|Malaquías|"
+        r"Mateo|Marcos|Lucas|Juan|Hechos|"
+        r"Romanos|1 Corintios|2 Corintios|"
+        r"Gálatas|Efesios|Filipenses|"
+        r"Colosenses|1 Tesalonicenses|"
+        r"2 Tesalonicenses|1 Timoteo|2 Timoteo|"
+        r"Tito|Filemón|Hebreos|Santiago|"
+        r"1 Pedro|2 Pedro|1 Juan|2 Juan|"
+        r"3 Juan|Judas|Apocalipsis)"
+        r"\s+\d+[.:]\d+(?:-\d+)?",
+        texto_total,
+        flags=re.I,
+    )
+
+    if patron_versiculo:
 
         versiculo = clean(
-            enlace_biblia.get_text(
-                " ",
-                strip=True
-            )
+            patron_versiculo.group(0)
         )
-
-    # Si no existe, buscar patrón bíblico.
-    if not versiculo:
-
-        texto_total = clean(
-            s.get_text(
-                " ",
-                strip=True
-            )
-        )
-
-        patron_versiculo = re.search(
-            r"\b"
-            r"(Gálatas|Mateo|Marcos|Lucas|Juan|"
-            r"Romanos|1 Corintios|2 Corintios|"
-            r"Efesios|Filipenses|Colosenses|"
-            r"Salmos|Proverbios|Hebreos|"
-            r"Santiago|1 Pedro|2 Pedro|"
-            r"1 Juan|2 Juan|3 Juan|Apocalipsis)"
-            r"\s+\d+[.:]\d+(?:-\d+)?",
-            texto_total,
-            flags=re.I,
-        )
-
-        if patron_versiculo:
-            versiculo = clean(
-                patron_versiculo.group(0)
-            )
 
     # --------------------------------------------------------
     # CUERPO
@@ -624,8 +897,6 @@ def extraer_encontacto():
 
     parrafos = []
 
-    # Estrategia principal:
-    # localizar el título y recorrer elementos posteriores.
     if titulo_elemento:
 
         for elemento in titulo_elemento.find_all_next(
@@ -658,7 +929,7 @@ def extraer_encontacto():
             ):
                 break
 
-            # Elementos que NO son parte del artículo.
+            # Navegación.
             if any(
                 marca in low
                 for marca in (
@@ -678,8 +949,8 @@ def extraer_encontacto():
                 continue
 
             if (
-                fecha
-                and low == fecha_es(fecha).lower()
+                fecha_hoy_texto
+                in low
             ):
                 continue
 
@@ -692,31 +963,19 @@ def extraer_encontacto():
             if len(texto) < 35:
                 continue
 
-            # Evitar duplicados.
             if texto in parrafos:
                 continue
 
             parrafos.append(texto)
 
-            # El cuerpo de En Contacto normalmente
-            # no necesita más de 12 bloques.
-            if len(parrafos) >= 12:
+            if len(parrafos) >= 20:
                 break
 
     # --------------------------------------------------------
-    # LIMPIEZA ESPECÍFICA
+    # LIMPIEZA
     # --------------------------------------------------------
 
     limpias = []
-
-    textos_prohibidos = (
-        "explore cómo las relaciones",
-        "la espera pone a prueba",
-        "opciones de transmisión digital",
-        "para disfrutar de excelente enseñanza",
-        "escuchar radio radio",
-        "ver ver video",
-    )
 
     for texto in parrafos:
 
@@ -724,11 +983,15 @@ def extraer_encontacto():
 
         if any(
             x in low
-            for x in textos_prohibidos
+            for x in (
+                "explore cómo las relaciones",
+                "la espera pone a prueba",
+                "opciones de transmisión digital",
+                "para disfrutar de excelente enseñanza",
+                "escuchar radio radio",
+                "ver ver video",
+            )
         ):
-            continue
-
-        if len(texto) < 35:
             continue
 
         limpias.append(texto)
@@ -758,29 +1021,22 @@ def extraer_encontacto():
             "En Contacto: no se encontró título."
         )
 
-    if not fecha:
-        raise RuntimeError(
-            "En Contacto: no se encontró fecha."
-        )
-
     if not parrafos:
         raise RuntimeError(
-            "En Contacto: no se encontró el cuerpo del devocional."
+            "En Contacto: no se encontró "
+            "el cuerpo del devocional."
         )
 
     return {
         "titulo": titulo,
         "subtitulo": subtitulo,
         "versiculo": versiculo,
-        "parrafos": parrafos,
+        "parrafos": parrafos[:20],
         "audio_url": audio,
         "audio_tipo": "mp3",
-        "fecha": fecha_es(fecha),
-        "fecha_iso": fecha_iso(fecha),
-        "link": (
-            "https://www.encontactoglobal.org/"
-            "lea/devocionales-diarios"
-        ),
+        "fecha": fecha_es(hoy),
+        "fecha_iso": fecha_iso(hoy),
+        "link": url,
     }
 
 
@@ -788,28 +1044,40 @@ def extraer_encontacto():
 # BAYLESS CONLEY
 # ============================================================
 
-def encontrar_articulo_bayless():
-    """
-    Obtiene la página del devocional más reciente.
+def obtener_bayless_directo(url):
 
-    Primero intenta el endpoint de WordPress.
-    Si no está disponible, utiliza la página pública.
     """
+    Descarga Bayless SIN añadir _devocionales_cache.
+
+    Esto es importante porque la ejecución que mostraste
+    recibió HTTP 500 precisamente sobre una URL de
+    respuestasbc.com con ese parámetro.
+    """
+
+    return get(
+        url,
+        cache=False
+    )
+
+
+def encontrar_articulo_bayless():
+
+    candidatos = []
 
     # --------------------------------------------------------
-    # OPCIÓN 1: WordPress REST API
+    # 1. API WORDPRESS
     # --------------------------------------------------------
 
     api_urls = [
         (
             "https://www.respuestasbc.com/"
             "wp-json/wp/v2/devotional"
-            "?per_page=1&orderby=date&order=desc"
+            "?per_page=5&orderby=date&order=desc"
         ),
         (
             "https://www.respuestasbc.com/"
             "wp-json/wp/v2/posts"
-            "?per_page=1&orderby=date&order=desc"
+            "?per_page=10&orderby=date&order=desc"
         ),
     ]
 
@@ -817,7 +1085,9 @@ def encontrar_articulo_bayless():
 
         try:
 
-            response = get(api_url)
+            response = obtener_bayless_directo(
+                api_url
+            )
 
             if response.status_code != 200:
                 continue
@@ -827,156 +1097,187 @@ def encontrar_articulo_bayless():
             if not isinstance(items, list):
                 continue
 
-            if not items:
-                continue
+            for item in items:
 
-            item = items[0]
+                if not isinstance(
+                    item,
+                    dict
+                ):
+                    continue
 
-            link = item.get(
-                "link"
-            )
+                link = item.get(
+                    "link"
+                )
 
-            if link:
-                return link
+                if link:
+                    candidatos.append(
+                        link
+                    )
 
         except Exception:
-            pass
+            continue
 
     # --------------------------------------------------------
-    # OPCIÓN 2: página pública
+    # 2. PÁGINA DE DEVOCIONALES
     # --------------------------------------------------------
 
-    landing = (
-        "https://www.respuestasbc.com/"
-        "devotional/"
-    )
+    landing_urls = [
+        "https://www.respuestasbc.com/devotional/",
+        "https://www.respuestasbc.com/devocionales/",
+        "https://www.respuestasbc.com/un-estilo-de-vida-de-fe/",
+    ]
 
-    response = get(landing)
-
-    s = BeautifulSoup(
-        response.text,
-        "html.parser"
-    )
-
-    # Buscar enlaces que parezcan artículos.
-    candidatos = []
-
-    for a in s.find_all(
-        "a",
-        href=True
-    ):
-
-        href = a.get("href", "").strip()
-
-        texto = clean(
-            a.get_text(
-                " ",
-                strip=True
-            )
-        )
-
-        if not href:
-            continue
-
-        if "/devotional/" not in href:
-            continue
-
-        if href.rstrip("/") == (
-            "https://www.respuestasbc.com/devotional"
-        ):
-            continue
-
-        # Evitar enlaces internos.
-        if any(
-            x in href.lower()
-            for x in (
-                "#",
-                "facebook",
-                "instagram",
-                "youtube",
-                "twitter",
-            )
-        ):
-            continue
-
-        candidatos.append(
-            (
-                urljoin(
-                    landing,
-                    href
-                ),
-                texto
-            )
-        )
-
-    # Quitar duplicados.
-    vistos = set()
-
-    candidatos_limpios = []
-
-    for href, texto in candidatos:
-
-        if href in vistos:
-            continue
-
-        vistos.add(href)
-
-        candidatos_limpios.append(
-            (
-                href,
-                texto
-            )
-        )
-
-    # --------------------------------------------------------
-    # Buscar el primero que tenga estructura de artículo.
-    # --------------------------------------------------------
-
-    for href, texto in candidatos_limpios:
+    for landing in landing_urls:
 
         try:
 
-            r = get(href)
+            response = obtener_bayless_directo(
+                landing
+            )
 
-            ss = BeautifulSoup(
-                r.text,
+            if response.status_code != 200:
+                continue
+
+            s = BeautifulSoup(
+                response.text,
                 "html.parser"
             )
 
-            h1 = ss.find("h1")
+            for a in s.find_all(
+                "a",
+                href=True
+            ):
 
-            if not h1:
+                href = a.get(
+                    "href",
+                    ""
+                ).strip()
+
+                if not href:
+                    continue
+
+                low = href.lower()
+
+                if (
+                    "respuestasbc.com"
+                    not in low
+                ):
+                    continue
+
+                if any(
+                    x in low
+                    for x in (
+                        "facebook",
+                        "instagram",
+                        "youtube",
+                        "twitter",
+                        "#",
+                    )
+                ):
+                    continue
+
+                texto = clean(
+                    a.get_text(
+                        " ",
+                        strip=True
+                    )
+                )
+
+                if len(texto) >= 4:
+
+                    candidatos.append(
+                        href
+                    )
+
+        except Exception:
+            continue
+
+    # --------------------------------------------------------
+    # QUITAR DUPLICADOS
+    # --------------------------------------------------------
+
+    unicos = []
+
+    vistos = set()
+
+    for url in candidatos:
+
+        if url in vistos:
+            continue
+
+        vistos.add(url)
+        unicos.append(url)
+
+    # --------------------------------------------------------
+    # PROBAR CANDIDATOS
+    # --------------------------------------------------------
+
+    hoy = fecha_bogota()
+
+    mejor = None
+    mejor_fecha = None
+
+    for articulo_url in unicos[:30]:
+
+        try:
+
+            response = obtener_bayless_directo(
+                articulo_url
+            )
+
+            if response.status_code != 200:
                 continue
 
-            titulo = clean(
-                h1.get_text(
+            s = BeautifulSoup(
+                response.text,
+                "html.parser"
+            )
+
+            texto_total = clean(
+                s.get_text(
                     " ",
                     strip=True
                 )
             )
 
-            if not titulo:
+            fecha = detectar_fecha(
+                texto_total
+            )
+
+            if fecha is None:
                 continue
 
-            return r.url
+            if fecha > hoy:
+                continue
+
+            if (
+                mejor_fecha is None
+                or fecha > mejor_fecha
+            ):
+
+                mejor_fecha = fecha
+                mejor = articulo_url
 
         except Exception:
             continue
 
+    if mejor:
+
+        return mejor
+
     raise RuntimeError(
         "Bayless: no se pudo localizar "
-        "el devocional más reciente."
+        "el artículo más reciente."
     )
 
 
 def extraer_bayless():
-    """
-    Extrae solamente un artículo de Bayless.
-    """
 
-    articulo_url = encontrar_articulo_bayless()
+    articulo_url = (
+        encontrar_articulo_bayless()
+    )
 
-    response = get(
+    response = obtener_bayless_directo(
         articulo_url
     )
 
@@ -1022,23 +1323,22 @@ def extraer_bayless():
                 )
             )
 
-    # Eliminar número de episodio.
     titulo = re.sub(
         r"^\s*#\s*\d+\s*[-–—:]?\s*",
         "",
         titulo
     ).strip()
 
-    # Nunca permitir títulos generales.
     if titulo.lower() in {
         "devocional diario",
         "respuestas para cada día",
         "bayless conley",
         "respuestas para cada dia",
     }:
+
         raise RuntimeError(
-            "Bayless: se encontró el encabezado general "
-            "en lugar del título del artículo."
+            "Bayless: se encontró "
+            "un encabezado general."
         )
 
     # --------------------------------------------------------
@@ -1051,7 +1351,7 @@ def extraer_bayless():
 
         padre = h1
 
-        for _ in range(6):
+        for _ in range(8):
 
             if not padre:
                 break
@@ -1093,18 +1393,19 @@ def extraer_bayless():
 
     if h1:
 
-        # Buscar el contenedor del artículo.
-        contenedor = h1.parent
+        contenedor = h1
 
         mejor_contenedor = None
 
-        for _ in range(6):
+        for _ in range(8):
 
             if not contenedor:
                 break
 
             cantidad_p = len(
-                contenedor.find_all("p")
+                contenedor.find_all(
+                    "p"
+                )
             )
 
             texto_contenedor = clean(
@@ -1114,27 +1415,32 @@ def extraer_bayless():
                 )
             )
 
-            # Un artículo real debe tener
-            # varios párrafos.
             if (
                 cantidad_p >= 3
                 and len(texto_contenedor) > 500
             ):
-                mejor_contenedor = contenedor
+
+                mejor_contenedor = (
+                    contenedor
+                )
                 break
 
             contenedor = contenedor.parent
 
         if mejor_contenedor:
 
-            elementos = mejor_contenedor.find_all(
-                ["p", "blockquote"]
+            elementos = (
+                mejor_contenedor.find_all(
+                    ["p", "blockquote"]
+                )
             )
 
         else:
 
-            elementos = h1.find_all_next(
-                ["p", "blockquote"]
+            elementos = (
+                h1.find_all_next(
+                    ["p", "blockquote"]
+                )
             )
 
         for elemento in elementos:
@@ -1151,10 +1457,6 @@ def extraer_bayless():
 
             low = texto.lower()
 
-            # ------------------------------------------------
-            # ELIMINAR CONTENIDO QUE NO PERTENECE AL ARTÍCULO
-            # ------------------------------------------------
-
             if any(
                 marca in low
                 for marca in (
@@ -1164,16 +1466,10 @@ def extraer_bayless():
                     "suscrib",
                     "copyright",
                     "todos los derechos reservados",
-                    "la siguiente “c” de",
-                    "la siguiente “c” de “las siete",
-                    "en el devocional anterior",
-                    "en el devocional anterior comenzamos",
-                    "las siete “c” para ganar almas",
                 )
             ):
                 continue
 
-            # El pie de página no debe entrar.
             if "© 2026" in texto:
                 break
 
@@ -1185,19 +1481,23 @@ def extraer_bayless():
 
             parrafos.append(texto)
 
+            if len(parrafos) >= 20:
+                break
+
     # --------------------------------------------------------
     # AUDIO SOUNDCLOUD
     # --------------------------------------------------------
 
     audio = ""
 
-    # Enlaces directos.
     for a in s.find_all(
         "a",
         href=True
     ):
 
-        href = a["href"].strip()
+        href = a[
+            "href"
+        ].strip()
 
         if (
             "soundcloud.com/respuestasbc/"
@@ -1208,7 +1508,6 @@ def extraer_bayless():
             audio = href
             break
 
-    # HTML incrustado.
     if not audio:
 
         match = re.search(
@@ -1228,16 +1527,19 @@ def extraer_bayless():
     # --------------------------------------------------------
 
     if not titulo:
+
         raise RuntimeError(
             "Bayless: no se encontró título."
         )
 
     if not fecha:
+
         raise RuntimeError(
             "Bayless: no se encontró fecha."
         )
 
     if not parrafos:
+
         raise RuntimeError(
             "Bayless: no se encontró texto."
         )
@@ -1260,28 +1562,38 @@ def extraer_bayless():
 # ============================================================
 
 def encontrar_kcm():
-    """
-    Obtiene el devocional actual.
-    """
 
-    url = (
-        "https://main.kcmlatino.org/"
-        "devotional"
+    urls = [
+        "https://main.kcmlatino.org/devotional",
+        "https://main.kcmlatino.org/devotional/",
+    ]
+
+    ultimo_error = None
+
+    for url in urls:
+
+        try:
+
+            response = get(
+                url,
+                cache=True
+            )
+
+            return response
+
+        except Exception as exc:
+
+            ultimo_error = exc
+
+    raise RuntimeError(
+        f"Kenneth: no se pudo acceder a KCM: "
+        f"{ultimo_error}"
     )
-
-    response = get(url)
-
-    return response
 
 
 def extraer_kenneth():
-    """
-    Extrae únicamente el artículo principal de KCM.
-    """
 
     response = encontrar_kcm()
-
-    final_url = response.url
 
     s = BeautifulSoup(
         response.text,
@@ -1289,6 +1601,8 @@ def extraer_kenneth():
     )
 
     html = str(s)
+
+    hoy = fecha_bogota()
 
     # --------------------------------------------------------
     # TÍTULO
@@ -1331,11 +1645,13 @@ def extraer_kenneth():
 
     fecha = None
 
+    # Primero intentar encontrar el bloque asociado al h1.
+
     if h1:
 
         padre = h1
 
-        for _ in range(6):
+        for _ in range(8):
 
             if not padre:
                 break
@@ -1358,15 +1674,25 @@ def extraer_kenneth():
 
             padre = padre.parent
 
+    # --------------------------------------------------------
+    # Si KCM está mostrando solamente:
+    #
+    # agosto 21
+    #
+    # detectar_fecha() ahora lo acepta.
+    # --------------------------------------------------------
+
     if not fecha:
 
-        fecha = detectar_fecha(
-            clean(
-                s.get_text(
-                    " ",
-                    strip=True
-                )
+        texto_total = clean(
+            s.get_text(
+                " ",
+                strip=True
             )
+        )
+
+        fecha = detectar_fecha(
+            texto_total
         )
 
     # --------------------------------------------------------
@@ -1377,19 +1703,18 @@ def extraer_kenneth():
 
     if h1:
 
-        # Buscar un contenedor razonable.
-        contenedor = h1.parent
+        contenedor = h1
 
         mejor = None
 
-        for _ in range(7):
+        for _ in range(8):
 
             if not contenedor:
                 break
 
             cantidad = len(
                 contenedor.find_all(
-                    ["p"]
+                    "p"
                 )
             )
 
@@ -1404,6 +1729,7 @@ def extraer_kenneth():
                 cantidad >= 2
                 and len(texto) > 500
             ):
+
                 mejor = contenedor
                 break
 
@@ -1411,14 +1737,18 @@ def extraer_kenneth():
 
         if mejor:
 
-            elementos = mejor.find_all(
-                ["p", "blockquote"]
+            elementos = (
+                mejor.find_all(
+                    ["p", "blockquote"]
+                )
             )
 
         else:
 
-            elementos = h1.find_all_next(
-                ["p", "blockquote"]
+            elementos = (
+                h1.find_all_next(
+                    ["p", "blockquote"]
+                )
             )
 
         for elemento in elementos:
@@ -1435,10 +1765,6 @@ def extraer_kenneth():
 
             low = texto.lower()
 
-            # ----------------------------------------------
-            # ELEMENTOS QUE NO SON EL DEVOCIONAL
-            # ----------------------------------------------
-
             if any(
                 marca in low
                 for marca in (
@@ -1448,14 +1774,11 @@ def extraer_kenneth():
                     "devotional type",
                     "loading",
                     "más opciones para compartir",
-                    "devocional",
+                    "más opciones",
+                    "widgets",
                 )
             ):
-
-                # "devocional" solo no es contenido,
-                # pero no descartamos textos largos.
-                if len(texto) < 100:
-                    continue
+                continue
 
             if len(texto) < 20:
                 continue
@@ -1465,45 +1788,8 @@ def extraer_kenneth():
 
             parrafos.append(texto)
 
-    # --------------------------------------------------------
-    # LIMPIAR FOOTER
-    # --------------------------------------------------------
-
-    limpias = []
-
-    for texto in parrafos:
-
-        low = texto.lower()
-
-        if (
-            "© 1997" in texto
-            or "© 1997 - 2026" in texto
-        ):
-            break
-
-        if low.startswith(
-            "bible reading:"
-        ):
-            # Lo conservamos como último dato bíblico.
-            limpias.append(texto)
-            break
-
-        if any(
-            x in low
-            for x in (
-                "contenido relacionado",
-                "visualízate resucitado",
-                "cuando el amor se enfada",
-                "el consejo del señor",
-                "mayo 26",
-                "devotional type",
-            )
-        ):
-            break
-
-        limpias.append(texto)
-
-    parrafos = limpias
+            if len(parrafos) >= 20:
+                break
 
     # --------------------------------------------------------
     # VERSÍCULO
@@ -1511,16 +1797,13 @@ def extraer_kenneth():
 
     versiculo = ""
 
-    for texto in parrafos[:4]:
+    for texto in parrafos[:5]:
 
         if (
             "«" in texto
-            or
-            "(" in texto
+            or "(" in texto
         ):
 
-            # Evitar tomar un párrafo demasiado largo
-            # como versículo.
             if len(texto) < 700:
 
                 versiculo = texto
@@ -1565,16 +1848,32 @@ def extraer_kenneth():
     # --------------------------------------------------------
 
     if not titulo:
+
         raise RuntimeError(
             "Kenneth: no se encontró título."
         )
 
     if not fecha:
+
         raise RuntimeError(
             "Kenneth: no se encontró fecha."
         )
 
+    # KCM puede mostrar el mes y día del artículo
+    # sin año. detectar_fecha() le asigna el año actual.
+    #
+    # No aceptar artículos de otro día.
+
+    if fecha != hoy:
+
+        raise RuntimeError(
+            "Kenneth: el artículo encontrado "
+            f"corresponde a {fecha_es(fecha)}, "
+            f"no a {fecha_es(hoy)}."
+        )
+
     if not parrafos:
+
         raise RuntimeError(
             "Kenneth: no se encontró texto."
         )
@@ -1613,7 +1912,11 @@ def load_previous():
 
             data = json.load(f)
 
-        if isinstance(data, dict):
+        if isinstance(
+            data,
+            dict
+        ):
+
             return data
 
     except Exception as exc:
@@ -1628,17 +1931,10 @@ def load_previous():
 
 
 # ============================================================
-# VALIDAR QUE SEA EL DÍA CORRECTO
+# VALIDACIÓN DEL DÍA
 # ============================================================
 
 def es_del_dia(item, hoy):
-    """
-    Comprueba que la fuente realmente corresponda
-    al día actual.
-
-    Esto es MUY importante:
-    no aceptamos simplemente que la página responda 200.
-    """
 
     if not valid(item):
         return False
@@ -1649,7 +1945,10 @@ def es_del_dia(item, hoy):
 
     if fecha_item:
 
-        return fecha_item == fecha_iso(hoy)
+        return (
+            fecha_item
+            == fecha_iso(hoy)
+        )
 
     fecha_texto = item.get(
         "fecha",
@@ -1662,13 +1961,16 @@ def es_del_dia(item, hoy):
 
     if fecha_detectada:
 
-        return fecha_detectada == hoy
+        return (
+            fecha_detectada
+            == hoy
+        )
 
     return False
 
 
 # ============================================================
-# UNA CONSULTA A LAS TRES FUENTES
+# CONSULTAR LAS TRES FUENTES
 # ============================================================
 
 def consultar_fuentes(hoy):
@@ -1683,8 +1985,9 @@ def consultar_fuentes(hoy):
 
     for clave, funcion in funciones.items():
 
+        print()
         print(
-            f"\nConsultando {clave}..."
+            f"Consultando {clave}..."
         )
 
         try:
@@ -1692,11 +1995,13 @@ def consultar_fuentes(hoy):
             item = funcion()
 
             print(
-                f"  Título: {item.get('titulo')}"
+                f"  Título: "
+                f"{item.get('titulo')}"
             )
 
             print(
-                f"  Fecha: {item.get('fecha')}"
+                f"  Fecha: "
+                f"{item.get('fecha')}"
             )
 
             if es_del_dia(
@@ -1734,7 +2039,7 @@ def consultar_fuentes(hoy):
 
 
 # ============================================================
-# ACTUALIZAR DATA.JSON
+# GUARDAR DATA.JSON
 # ============================================================
 
 def guardar_data(
@@ -1745,7 +2050,6 @@ def guardar_data(
 
     data = dict(anterior)
 
-    # Fecha general del día de la ejecución.
     data["fecha"] = fecha_es(hoy)
 
     data["generado"] = ahora_utc()
@@ -1768,8 +2072,10 @@ def guardar_data(
             anterior.get(clave)
         ):
 
-            # Conservamos el último dato válido.
-            data[clave] = anterior[clave]
+            # Conservar el último contenido válido.
+            data[clave] = anterior[
+                clave
+            ]
 
     with DATA_FILE.open(
         "w",
@@ -1795,30 +2101,39 @@ def main():
     hoy = fecha_bogota()
 
     print("=" * 60)
-    print("ACTUALIZADOR DE DEVOCIONALES DIARIOS")
+    print(
+        "ACTUALIZADOR DE DEVOCIONALES DIARIOS"
+    )
     print("=" * 60)
+
     print(
         f"Fecha esperada en Colombia: "
         f"{fecha_es(hoy)}"
     )
+
     print(
-        "Intervalo de comprobación: "
-        "20 minutos"
+        "Modo: una consulta por ejecución"
     )
+
     print("=" * 60)
 
     anterior = load_previous()
 
-    while True:
+    for intento in range(
+        1,
+        MAX_INTENTOS + 1
+    ):
 
         print()
         print("=" * 60)
         print(
-            "NUEVO INTENTO"
+            f"INTENTO {intento}/{MAX_INTENTOS}"
         )
+
         print(
             f"Hora UTC: {ahora_utc()}"
         )
+
         print("=" * 60)
 
         resultados = consultar_fuentes(
@@ -1826,7 +2141,6 @@ def main():
         )
 
         actualizados = []
-
         pendientes = []
 
         for clave in (
@@ -1835,7 +2149,9 @@ def main():
             "kenneth",
         ):
 
-            if resultados.get(clave):
+            if resultados.get(
+                clave
+            ):
 
                 actualizados.append(
                     clave
@@ -1847,16 +2163,16 @@ def main():
                     clave
                 )
 
-        # Guardar inmediatamente cualquier fuente
-        # que sí haya llegado al día correcto.
+        # ----------------------------------------------------
+        # GUARDAR INMEDIATAMENTE LO QUE SÍ ESTÉ ACTUALIZADO
+        # ----------------------------------------------------
+
         guardar_data(
             anterior,
             resultados,
             hoy
         )
 
-        # Actualizar la referencia para que una fuente
-        # ya actualizada no se pierda en los siguientes intentos.
         anterior = load_previous()
 
         print()
@@ -1865,17 +2181,16 @@ def main():
             f"{len(actualizados)}/3"
         )
 
-        if actualizados:
+        for clave in actualizados:
 
-            for clave in actualizados:
-
-                print(
-                    f"  OK  - {clave}: "
-                    f"{resultados[clave]['titulo']}"
-                )
+            print(
+                f"  OK - {clave}: "
+                f"{resultados[clave]['titulo']}"
+            )
 
         if pendientes:
 
+            print()
             print(
                 "Pendientes:"
             )
@@ -1887,7 +2202,7 @@ def main():
                 )
 
         # ----------------------------------------------------
-        # TERMINAR CUANDO LOS TRES ESTÉN AL DÍA
+        # LOS TRES ESTÁN ACTUALIZADOS
         # ----------------------------------------------------
 
         if len(actualizados) == 3:
@@ -1895,14 +2210,22 @@ def main():
             print()
             print("=" * 60)
             print(
-                "LOS 3 DEVOCIONALES ESTÁN ACTUALIZADOS."
+                "LOS 3 DEVOCIONALES "
+                "ESTÁN ACTUALIZADOS."
             )
             print("=" * 60)
 
-            break
+            return 0
 
         # ----------------------------------------------------
-        # ESPERAR 20 MINUTOS
+        # NO FALLAR EL WORKFLOW
+        # ----------------------------------------------------
+        #
+        # Si una fuente todavía no publicó el devocional,
+        # conservamos el último dato válido y terminamos.
+        #
+        # El workflow volverá a ejecutarse en su próximo
+        # horario programado.
         # ----------------------------------------------------
 
         print()
@@ -1911,13 +2234,11 @@ def main():
         )
 
         print(
-            "Esperando 20 minutos antes "
-            "del siguiente intento..."
+            "Se conserva el último contenido "
+            "válido y esta ejecución termina."
         )
 
-        time.sleep(
-            INTERVALO_REINTENTO
-        )
+        return 0
 
 
 # ============================================================
@@ -1928,7 +2249,9 @@ if __name__ == "__main__":
 
     try:
 
-        main()
+        sys.exit(
+            main()
+        )
 
     except KeyboardInterrupt:
 
