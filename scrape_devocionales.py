@@ -2,19 +2,15 @@
 """
 Actualiza los tres devocionales diarios.
 
-- En Contacto:
-  Busca específicamente la Meditación diaria del día actual.
-  No acepta contenido de una fecha anterior.
-  Conserva el último dato válido si la fuente todavía no publicó el día.
-
-- Bayless Conley:
-  Busca el devocional actual y evita arrastrar devocionales anteriores,
-  suscripciones y contenido del pie de página.
-
-- Kenneth Copeland:
-  Conserva la lógica de extracción del MP3 y del contenido.
-
-Si una fuente falla, se conserva el último contenido válido.
+Características:
+- Evita caché agregando un parámetro único a las URLs.
+- Usa la fecha de Colombia (America/Bogota).
+- No acepta una página que todavía tenga el día anterior.
+- En Contacto: extrae únicamente la meditación actual.
+- Bayless: extrae únicamente el artículo actual y elimina
+  "Leer devocionales anteriores", suscripción y pie de página.
+- Kenneth: extrae únicamente el contenido del devocional.
+- Si una fuente falla, conserva el último contenido válido.
 """
 
 import datetime as dt
@@ -22,90 +18,170 @@ import json
 import re
 import sys
 from pathlib import Path
+from urllib.parse import urljoin
 
 import requests
 from bs4 import BeautifulSoup
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+from zoneinfo import ZoneInfo
 
 
 # ============================================================
 # CONFIGURACIÓN
 # ============================================================
 
-HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (compatible; DevocionalesDiariosBot/3.0; "
-        "+https://wiyata01.github.io/devocionales/)"
-    ),
-    "Accept-Language": "es-ES,es;q=0.9,en;q=0.7",
-}
+DATA_FILE = Path("data.json")
 
 TIMEOUT = 30
 
-DATA_FILE = Path("data.json")
+HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/151.0.0.0 Safari/537.36 "
+        "DevocionalesDiariosBot/3.0"
+    ),
+    "Accept-Language": "es-ES,es;q=0.9,en;q=0.8",
+    "Cache-Control": "no-cache",
+    "Pragma": "no-cache",
+}
 
 
 # ============================================================
 # SESIÓN HTTP
 # ============================================================
 
-def session():
+def create_session():
     s = requests.Session()
 
     retry = Retry(
-        total=3,
-        connect=3,
-        read=3,
-        backoff_factor=1,
+        total=4,
+        connect=4,
+        read=4,
+        backoff_factor=2,
         status_forcelist=(429, 500, 502, 503, 504),
         allowed_methods=frozenset(["GET"]),
         raise_on_status=False,
     )
 
-    s.mount(
-        "https://",
-        HTTPAdapter(max_retries=retry)
+    adapter = HTTPAdapter(
+        max_retries=retry,
+        pool_connections=10,
+        pool_maxsize=10,
     )
+
+    s.mount("https://", adapter)
+    s.mount("http://", adapter)
 
     s.headers.update(HEADERS)
 
     return s
 
 
-S = session()
+S = create_session()
 
 
 # ============================================================
 # UTILIDADES
 # ============================================================
 
-MESES = [
-    "enero",
-    "febrero",
-    "marzo",
-    "abril",
-    "mayo",
-    "junio",
-    "julio",
-    "agosto",
-    "septiembre",
-    "octubre",
-    "noviembre",
-    "diciembre",
-]
-
-
 def clean(text):
-    return re.sub(r"\s+", " ", text or "").strip()
+    if not text:
+        return ""
+
+    text = text.replace("\xa0", " ")
+    text = re.sub(r"\s+", " ", text)
+
+    return text.strip()
+
+
+def today_colombia():
+    """
+    Fecha real de Colombia.
+    """
+    return dt.datetime.now(
+        ZoneInfo("America/Bogota")
+    ).date()
+
+
+def fecha_espanol(fecha=None):
+    if fecha is None:
+        fecha = today_colombia()
+
+    meses = [
+        "enero",
+        "febrero",
+        "marzo",
+        "abril",
+        "mayo",
+        "junio",
+        "julio",
+        "agosto",
+        "septiembre",
+        "octubre",
+        "noviembre",
+        "diciembre",
+    ]
+
+    return (
+        f"{fecha.day} de "
+        f"{meses[fecha.month - 1]} de "
+        f"{fecha.year}"
+    )
+
+
+def fecha_ingles(fecha=None):
+    if fecha is None:
+        fecha = today_colombia()
+
+    meses = [
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December",
+    ]
+
+    return (
+        f"{meses[fecha.month - 1]} "
+        f"{fecha.day}, "
+        f"{fecha.year}"
+    )
+
+
+def url_no_cache(url):
+    """
+    Agrega un parámetro único para evitar que el servidor/CDN
+    entregue una versión vieja de la página.
+    """
+    separador = "&" if "?" in url else "?"
+
+    ahora = dt.datetime.now(
+        dt.timezone.utc
+    ).strftime("%Y%m%d%H%M%S")
+
+    return f"{url}{separador}_nocache={ahora}"
 
 
 def get(url):
+    final_url = url_no_cache(url)
+
     r = S.get(
-        url,
+        final_url,
         timeout=TIMEOUT,
         allow_redirects=True,
-        cache_bust=True if False else None,
+        headers={
+            "Cache-Control": "no-cache",
+            "Pragma": "no-cache",
+        },
     )
 
     r.raise_for_status()
@@ -113,19 +189,35 @@ def get(url):
     return r
 
 
-def soup_from_response(response):
-    return BeautifulSoup(
-        response.text,
-        "html.parser"
+def clean_url(url):
+    """
+    Elimina parámetros de caché de nuestras propias peticiones.
+    """
+    if not url:
+        return ""
+
+    url = re.sub(
+        r"[?&]_nocache=\d+",
+        "",
+        url,
     )
 
+    return url
 
-def first_nonempty(values):
-    for value in values:
-        value = clean(value)
 
-        if value:
-            return value
+def extract_mp3(html, patterns):
+    for pattern in patterns:
+        m = re.search(
+            pattern,
+            html,
+            flags=re.I,
+        )
+
+        if m:
+            return m.group(1).replace(
+                "\\/",
+                "/",
+            )
 
     return ""
 
@@ -136,115 +228,86 @@ def valid(item):
         and bool(item.get("titulo"))
         and isinstance(item.get("parrafos"), list)
         and any(
-            clean(str(p))
-            for p in item.get("parrafos", [])
+            clean(x)
+            for x in item.get("parrafos", [])
         )
     )
 
 
-def extract_mp3(html, patterns):
-    for pattern in patterns:
-
-        m = re.search(
-            pattern,
-            html,
-            flags=re.I
-        )
-
-        if m:
-            return (
-                m.group(1)
-                .replace("\\/", "/")
-            )
-
-    return ""
-
-
-def fecha_hoy_colombia():
+def normalizar_titulo_bayless(title):
     """
-    Obtiene la fecha actual usando la hora de Colombia.
-    America/Bogota es UTC-5 durante todo el año.
+    Convierte:
+
+    #227 El Consolador
+    # 227 El Consolador
+    227 El Consolador
+
+    en:
+
+    El Consolador
     """
 
-    now_utc = dt.datetime.now(
-        dt.timezone.utc
+    title = clean(title)
+
+    title = re.sub(
+        r"^\s*#?\s*\d+\s*[-–—:.]?\s*",
+        "",
+        title,
     )
 
-    colombia = now_utc - dt.timedelta(
-        hours=5
-    )
-
-    return colombia.date()
+    return clean(title)
 
 
-def fecha_espanol(fecha):
-    return (
-        f"{fecha.day} de "
-        f"{MESES[fecha.month - 1]} de "
-        f"{fecha.year}"
-    )
+# ============================================================
+# VALIDACIÓN DE FECHA
+# ============================================================
 
-
-def normalizar_fecha(texto):
+def validar_fecha_encontacto(s):
     """
-    Convierte una fecha encontrada en una página a date.
+    Comprueba que En Contacto realmente tenga la fecha de hoy.
 
     Acepta:
-        28 de agosto de 2026
-        28 agosto 2026
-        28/08/2026
-        28-08-2026
+    28 de agosto de 2026
     """
 
-    texto = clean(texto).lower()
+    hoy = today_colombia()
 
-    patron = re.search(
-        r"\b(\d{1,2})\s+de\s+"
-        r"(enero|febrero|marzo|abril|mayo|junio|"
-        r"julio|agosto|septiembre|octubre|noviembre|diciembre)"
-        r"\s+de\s+(\d{4})\b",
-        texto,
-        flags=re.I,
+    texto = s.get_text(
+        " ",
+        strip=True,
     )
 
-    if patron:
+    fecha_hoy = fecha_espanol(hoy)
 
-        dia = int(patron.group(1))
-        mes_nombre = patron.group(2).lower()
-        anio = int(patron.group(3))
+    if fecha_hoy.lower() not in texto.lower():
+        raise RuntimeError(
+            "En Contacto todavía no muestra la fecha de hoy "
+            f"({fecha_hoy}). Se conserva el contenido anterior."
+        )
 
-        try:
-            mes = MESES.index(mes_nombre) + 1
 
-            return dt.date(
-                anio,
-                mes,
-                dia
-            )
+def validar_fecha_bayless(s):
+    """
+    Comprueba que Bayless tenga el día actual.
 
-        except ValueError:
-            return None
+    La página usa formato:
+    Today, August 28, 2026
+    """
 
-    patron = re.search(
-        r"\b(\d{1,2})[/-]"
-        r"(\d{1,2})[/-]"
-        r"(\d{4})\b",
-        texto
+    hoy = today_colombia()
+
+    texto = s.get_text(
+        " ",
+        strip=True,
     )
 
-    if patron:
+    fecha_hoy = fecha_ingles(hoy)
 
-        try:
-            return dt.date(
-                int(patron.group(3)),
-                int(patron.group(2)),
-                int(patron.group(1)),
-            )
-
-        except ValueError:
-            return None
-
-    return None
+    if fecha_hoy.lower() not in texto.lower():
+        raise RuntimeError(
+            "Bayless todavía no muestra la fecha de hoy "
+            f"({fecha_hoy}). Se conserva el contenido anterior."
+        )
 
 
 # ============================================================
@@ -260,171 +323,81 @@ def scrape_encontacto():
 
     r = get(url)
 
-    s = soup_from_response(r)
+    s = BeautifulSoup(
+        r.text,
+        "html.parser",
+    )
 
     html = str(s)
 
-    hoy = fecha_hoy_colombia()
-
-    fecha_esperada = fecha_espanol(hoy)
-
     # --------------------------------------------------------
-    # BUSCAR EL ARTÍCULO ACTUAL
+    # IMPORTANTE:
+    # No aceptamos una página atrasada.
     # --------------------------------------------------------
 
-    h1 = None
+    validar_fecha_encontacto(s)
 
-    for candidato in s.find_all("h1"):
+    # --------------------------------------------------------
+    # LOCALIZAR "MEDITACIÓN DIARIA"
+    # --------------------------------------------------------
 
-        texto = clean(
-            candidato.get_text(
-                " ",
-                strip=True
-            )
+    meditation_marker = None
+
+    for tag in s.find_all(
+        string=re.compile(
+            r"^\s*Meditación diaria\s*$",
+            re.I,
         )
-
-        if texto:
-            h1 = candidato
-            break
-
-    if not h1:
-
-        raise RuntimeError(
-            "En Contacto: no se encontró el título h1"
-        )
-
-    titulo = clean(
-        h1.get_text(
-            " ",
-            strip=True
-        )
-    )
-
-    if not titulo:
-
-        raise RuntimeError(
-            "En Contacto: título vacío"
-        )
-
-    # --------------------------------------------------------
-    # BUSCAR EL CONTENEDOR DEL ARTÍCULO
-    # --------------------------------------------------------
-
-    articulo = None
-
-    actual = h1
-
-    # Subimos varios niveles buscando article/main/section
-    for _ in range(8):
-
-        actual = actual.parent
-
-        if actual is None:
-            break
-
-        if getattr(actual, "name", None) in (
-            "article",
-            "main",
-            "section",
-        ):
-
-            texto_contenedor = clean(
-                actual.get_text(
-                    " ",
-                    strip=True
-                )
-            )
-
-            if (
-                fecha_esperada.lower()
-                in texto_contenedor.lower()
-            ):
-
-                articulo = actual
-
-                break
-
-    # Si no encontramos contenedor adecuado,
-    # usamos el padre inmediato del H1 como respaldo.
-    if articulo is None:
-
-        articulo = h1.parent
-
-    if articulo is None:
-
-        raise RuntimeError(
-            "En Contacto: no se encontró el bloque del artículo"
-        )
-
-    # --------------------------------------------------------
-    # BUSCAR FECHA
-    # --------------------------------------------------------
-
-    fecha_encontrada = None
-
-    # Primero buscamos cerca del título.
-    for tag in articulo.find_all(
-        ["time", "p", "div", "span"],
-        limit=80
     ):
+        meditation_marker = tag.parent
+        break
 
-        texto = clean(
-            tag.get_text(
-                " ",
-                strip=True
-            )
-        )
+    # --------------------------------------------------------
+    # TÍTULO
+    # --------------------------------------------------------
 
-        fecha = normalizar_fecha(texto)
+    title = ""
 
-        if fecha:
+    if meditation_marker:
 
-            fecha_encontrada = fecha
-
-            break
-
-    # También buscamos directamente en todo el documento
-    # si el contenedor no tenía la fecha.
-    if fecha_encontrada is None:
-
-        for tag in s.find_all(
-            ["time", "p", "div", "span"]
+        # Buscar el primer H1 posterior al marcador.
+        for element in meditation_marker.find_all_next(
+            ["h1", "h2"],
         ):
 
             texto = clean(
-                tag.get_text(
+                element.get_text(
                     " ",
-                    strip=True
+                    strip=True,
                 )
             )
 
-            if fecha_esperada.lower() in texto.lower():
+            if not texto:
+                continue
 
-                fecha = normalizar_fecha(texto)
+            # Evitar títulos de navegación.
+            if texto.lower() in {
+                "opciones de lectura",
+                "otros devocionles",
+                "otros devocionales",
+            }:
+                continue
 
-                if fecha:
+            title = texto
+            break
 
-                    fecha_encontrada = fecha
+    # Fallback
+    if not title:
 
-                    break
+        h1 = s.find("h1")
 
-    # --------------------------------------------------------
-    # VALIDACIÓN CRÍTICA DE FECHA
-    # --------------------------------------------------------
-
-    if fecha_encontrada != hoy:
-
-        encontrada = (
-            fecha_espanol(fecha_encontrada)
-            if fecha_encontrada
-            else "ninguna"
-        )
-
-        raise RuntimeError(
-            "En Contacto todavía no tiene el devocional "
-            f"de hoy ({fecha_esperada}). "
-            f"Se encontró: {encontrada}"
-        )
+        if h1:
+            title = clean(
+                h1.get_text(
+                    " ",
+                    strip=True,
+                )
+            )
 
     # --------------------------------------------------------
     # SUBTÍTULO
@@ -432,16 +405,31 @@ def scrape_encontacto():
 
     subtitle = ""
 
-    h2 = h1.find_next("h2")
+    if meditation_marker:
 
-    if h2:
+        encontrado_title = False
 
-        subtitle = clean(
-            h2.get_text(
-                " ",
-                strip=True
+        for element in meditation_marker.find_all_next(
+            ["h1", "h2"],
+        ):
+
+            texto = clean(
+                element.get_text(
+                    " ",
+                    strip=True,
+                )
             )
-        )
+
+            if not texto:
+                continue
+
+            if texto == title:
+                encontrado_title = True
+                continue
+
+            if encontrado_title:
+                subtitle = texto
+                break
 
     # --------------------------------------------------------
     # VERSÍCULO
@@ -449,153 +437,30 @@ def scrape_encontacto():
 
     verse = ""
 
-    for a in articulo.find_all(
-        "a",
-        href=True
-    ):
+    if meditation_marker:
 
-        href = a.get("href", "")
+        for a in meditation_marker.find_all_next(
+            "a",
+            href=True,
+        ):
 
-        if "biblegateway.com" in href.lower():
+            href = a.get("href", "")
 
-            verse = clean(
-                a.get_text(
-                    " ",
-                    strip=True
-                )
-            )
-
-            if verse:
-                break
-
-    # --------------------------------------------------------
-    # TEXTO DEL DEVOCIONAL
-    # --------------------------------------------------------
-
-    paragraphs = []
-
-    # Primero encontramos el H1 dentro del artículo.
-    # Todo lo que aparece después será examinado.
-    encontrado_h1 = False
-
-    for tag in articulo.find_all(
-        ["h1", "h2", "h3", "p", "li"]
-    ):
-
-        if tag is h1:
-
-            encontrado_h1 = True
-
-            continue
-
-        if not encontrado_h1:
-            continue
-
-        # ----------------------------------------------------
-        # DETENER ANTES DEL CONTENIDO POSTERIOR
-        # ----------------------------------------------------
-
-        if tag.name in ("h2", "h3"):
-
-            encabezado = clean(
-                tag.get_text(
-                    " ",
-                    strip=True
-                )
-            ).lower()
-
-            if encabezado in (
-                "opciones de lectura",
-                "otros devocionales",
-                "otros devocionles",
-                "biblia en un año",
+            if re.search(
+                r"biblegateway\.com",
+                href,
+                re.I,
             ):
 
-                break
+                verse = clean(
+                    a.get_text(
+                        " ",
+                        strip=True,
+                    )
+                )
 
-        text = clean(
-            tag.get_text(
-                " ",
-                strip=True
-            )
-        )
-
-        if not text:
-            continue
-
-        low = text.lower()
-
-        # ----------------------------------------------------
-        # CONTENIDO QUE NO FORMA PARTE DEL DEVOCIONAL
-        # ----------------------------------------------------
-
-        if low in (
-            "meditación diaria",
-            "opciones de lectura",
-            "sociales",
-            "donar",
-            "leer",
-        ):
-            continue
-
-        if "biblia en un año" in low:
-            break
-
-        if "otros devocional" in low:
-            break
-
-        if low.startswith(
-            "todas las meditaciones diarias"
-        ):
-            break
-
-        if any(
-            palabra in low
-            for palabra in (
-                "suscríbase",
-                "suscribirse",
-                "correo electrónico",
-            )
-        ):
-            continue
-
-        # Los textos demasiado pequeños suelen ser
-        # controles, botones o navegación.
-        if len(text) < 25:
-            continue
-
-        # No guardar la fecha como párrafo.
-        if normalizar_fecha(text) == hoy:
-            continue
-
-        # No guardar el versículo como párrafo.
-        if text == verse:
-            continue
-
-        paragraphs.append(text)
-
-    # --------------------------------------------------------
-    # LIMPIEZA FINAL
-    # --------------------------------------------------------
-
-    # Elimina duplicados consecutivos.
-    limpios = []
-
-    for p in paragraphs:
-
-        if not limpios or p != limpios[-1]:
-
-            limpios.append(p)
-
-    paragraphs = limpios
-
-    # En el devocional actual esperamos varios bloques.
-    if len(paragraphs) < 2:
-
-        raise RuntimeError(
-            "En Contacto: se encontró la fecha correcta "
-            "pero no se pudo extraer suficiente texto"
-        )
+                if verse:
+                    break
 
     # --------------------------------------------------------
     # AUDIO
@@ -604,24 +469,216 @@ def scrape_encontacto():
     audio = extract_mp3(
         html,
         [
-            r"(https://intouch\.azureedge\.net/"
-            r"spanish/devo/[A-Za-z0-9_./-]+\.mp3)",
+            r"("
+            r"https://intouch\.azureedge\.net/"
+            r"spanish/devo/"
+            r"[A-Za-z0-9_./-]+"
+            r"\.mp3"
+            r")",
         ],
     )
 
     # --------------------------------------------------------
-    # RESULTADO
+    # TEXTO DEL DEVOCIONAL
     # --------------------------------------------------------
 
+    paragraphs = []
+
+    # Localizamos el título real.
+    title_tag = None
+
+    for h in s.find_all("h1"):
+        if clean(
+            h.get_text(
+                " ",
+                strip=True,
+            )
+        ) == title:
+            title_tag = h
+            break
+
+    if title_tag:
+
+        # Empezamos DESPUÉS del H1.
+        for element in title_tag.find_all_next():
+
+            # ------------------------------------------------
+            # PARAR antes de "Otros devocionales"
+            # ------------------------------------------------
+
+            if element.name in ["h2", "h3"]:
+
+                texto_h = clean(
+                    element.get_text(
+                        " ",
+                        strip=True,
+                    )
+                ).lower()
+
+                if (
+                    "otros devoc" in texto_h
+                    or "biblia en un año" in texto_h
+                ):
+                    break
+
+            # ------------------------------------------------
+            # PARAR en la sección de Biblia en un año
+            # ------------------------------------------------
+
+            texto = clean(
+                element.get_text(
+                    " ",
+                    strip=True,
+                )
+            )
+
+            low = texto.lower()
+
+            if (
+                "biblia en un año:" in low
+                or low == "biblia en un año"
+            ):
+                break
+
+            # ------------------------------------------------
+            # Solo P y LI
+            # ------------------------------------------------
+
+            if element.name not in ["p", "li"]:
+                continue
+
+            # Evitar elementos que estén dentro de otro
+            # P/LI y así evitar duplicaciones.
+            if element.find_parent(
+                ["p", "li"]
+            ):
+                continue
+
+            if not texto:
+                continue
+
+            # El versículo no forma parte del cuerpo.
+            if texto == verse:
+                continue
+
+            # El texto de navegación no forma parte.
+            if len(texto) < 25:
+                continue
+
+            if any(
+                x in low
+                for x in (
+                    "suscríbase",
+                    "suscribirse",
+                    "correo electrónico",
+                    "opciones de lectura",
+                    "facebook",
+                    "instagram",
+                    "twitter",
+                    "youtube",
+                )
+            ):
+                continue
+
+            paragraphs.append(texto)
+
+    # --------------------------------------------------------
+    # Si el selector anterior no encontró suficiente texto,
+    # usamos una segunda estrategia limitada.
+    # --------------------------------------------------------
+
+    if len(paragraphs) < 1:
+
+        paragraphs = []
+
+        started = False
+
+        for element in s.find_all(
+            ["p", "li"]
+        ):
+
+            texto = clean(
+                element.get_text(
+                    " ",
+                    strip=True,
+                )
+            )
+
+            if not texto:
+                continue
+
+            if title and title in texto:
+                started = True
+                continue
+
+            if not started:
+                continue
+
+            low = texto.lower()
+
+            if (
+                "biblia en un año" in low
+                or "otros devoc" in low
+            ):
+                break
+
+            if len(texto) < 25:
+                continue
+
+            paragraphs.append(texto)
+
+    # --------------------------------------------------------
+    # Eliminar duplicados manteniendo orden.
+    # --------------------------------------------------------
+
+    vistos = set()
+    limpios = []
+
+    for p in paragraphs:
+
+        clave = clean(p).lower()
+
+        if clave in vistos:
+            continue
+
+        vistos.add(clave)
+        limpios.append(p)
+
+    paragraphs = limpios[:20]
+
+    # --------------------------------------------------------
+    # VALIDACIÓN
+    # --------------------------------------------------------
+
+    if not title:
+        raise RuntimeError(
+            "En Contacto: no se encontró el título."
+        )
+
+    if not paragraphs:
+        raise RuntimeError(
+            "En Contacto: no se encontró el cuerpo "
+            "del devocional."
+        )
+
+    # Evitar títulos generales.
+    if title.lower() in {
+        "meditación diaria",
+        "devocional diario",
+    }:
+        raise RuntimeError(
+            "En Contacto: se obtuvo un título general "
+            "en lugar del título del devocional."
+        )
+
     return {
-        "titulo": titulo,
+        "titulo": title,
         "subtitulo": subtitle,
         "versiculo": verse,
-        "parrafos": paragraphs[:20],
+        "parrafos": paragraphs,
         "audio_url": audio,
         "audio_tipo": "mp3",
-        "link": r.url,
-        "fecha_fuente": fecha_esperada,
+        "link": clean_url(r.url),
     }
 
 
@@ -638,160 +695,258 @@ def scrape_bayless():
 
     r = get(landing)
 
-    s = soup_from_response(r)
+    s = BeautifulSoup(
+        r.text,
+        "html.parser",
+    )
 
     html = str(s)
 
     # --------------------------------------------------------
-    # TÍTULO
+    # NO aceptar contenido de ayer.
+    # --------------------------------------------------------
+
+    validar_fecha_bayless(s)
+
+    # --------------------------------------------------------
+    # ENCONTRAR EL TÍTULO REAL DEL ARTÍCULO
     # --------------------------------------------------------
 
     title = ""
 
-    candidatos = []
+    article_title_tag = None
 
-    ignorados = {
-        "devocional diario",
-        "respuestas para cada día",
-        "bayless conley",
-    }
-
-    for tag in s.find_all(
-        ["h1", "h2", "h3"]
-    ):
+    for h1 in s.find_all("h1"):
 
         texto = clean(
-            tag.get_text(
+            h1.get_text(
                 " ",
-                strip=True
+                strip=True,
             )
         )
 
         if not texto:
             continue
 
-        if texto.lower() in ignorados:
+        normalizado = texto.lower()
+
+        if normalizado in {
+            "devocional diario",
+            "respuestas para cada día",
+            "bayless conley",
+        }:
             continue
 
-        candidatos.append(texto)
-
-    for candidato in candidatos:
-
-        if re.search(
-            r"(#\s*\d+\s+)?"
-            r"[A-Za-zÁÉÍÓÚáéíóúÑñÜü]",
-            candidato
+        if re.match(
+            r"^#?\s*\d+",
+            texto,
         ):
 
-            title = candidato
+            title = normalizar_titulo_bayless(
+                texto
+            )
 
+            article_title_tag = h1
             break
 
+    # Si no encontramos un H1 con número,
+    # buscar otros encabezados.
+    if not title:
+
+        for tag in s.find_all(
+            ["h2", "h3"]
+        ):
+
+            texto = clean(
+                tag.get_text(
+                    " ",
+                    strip=True,
+                )
+            )
+
+            if not texto:
+                continue
+
+            if texto.lower() in {
+                "devocional diario",
+                "respuestas para cada día",
+                "bayless conley",
+                "leer devocionales anteriores",
+            }:
+                continue
+
+            if re.match(
+                r"^#?\s*\d+",
+                texto,
+            ):
+
+                title = normalizar_titulo_bayless(
+                    texto
+                )
+
+                article_title_tag = tag
+                break
+
+    # OpenGraph como respaldo.
     if not title:
 
         og = s.find(
             "meta",
             attrs={
                 "property": "og:title"
-            }
+            },
         )
 
         if og:
 
-            title = clean(
-                og.get("content", "")
+            title = normalizar_titulo_bayless(
+                og.get(
+                    "content",
+                    "",
+                )
             )
 
     if not title:
+        raise RuntimeError(
+            "Bayless: no se encontró el título "
+            "del artículo."
+        )
 
-        title_tag = s.find("title")
-
-        if title_tag:
-
-            title = clean(
-                title_tag.get_text()
-            )
-
-    # Quitar número de episodio.
-    title = re.sub(
-        r"^\s*#\s*\d+\s*[-–—:]?\s*",
-        "",
-        title
-    ).strip()
-
-    if title.lower() in ignorados:
-
-        title = ""
+    # Nunca permitir un título general.
+    if title.lower() in {
+        "devocional diario",
+        "respuestas para cada día",
+        "bayless conley",
+    }:
+        raise RuntimeError(
+            "Bayless: se obtuvo el título general "
+            "del sitio."
+        )
 
     # --------------------------------------------------------
-    # TEXTO
+    # TEXTO DEL ARTÍCULO
     # --------------------------------------------------------
 
     paragraphs = []
 
-    # Palabras que indican que ya terminó el artículo.
-    palabras_fin = (
-        "la siguiente “c”",
-        "la siguiente \"c\"",
-        "el devocional anterior",
-        "recibir los correos gratis",
-        "me gustaría recibir",
-        "there was an error submitting",
-        "copyright",
-        "© 2026",
-        "todos los derechos reservados",
-    )
+    # Buscar el contenedor del artículo.
+    article = None
 
-    for p in s.find_all("p"):
+    if article_title_tag:
 
-        text = clean(
-            p.get_text(
+        # Intentar encontrar el ARTICLE más cercano.
+        article = article_title_tag.find_parent(
+            "article"
+        )
+
+        # Si no existe, buscar un contenedor razonable.
+        if article is None:
+
+            parent = article_title_tag.parent
+
+            for _ in range(5):
+
+                if parent is None:
+                    break
+
+                texto_parent = clean(
+                    parent.get_text(
+                        " ",
+                        strip=True,
+                    )
+                )
+
+                if len(texto_parent) > 500:
+                    article = parent
+                    break
+
+                parent = parent.parent
+
+    if article is None:
+        article = s
+
+    # --------------------------------------------------------
+    # Extraer P y BLOCKQUOTE del artículo.
+    # --------------------------------------------------------
+
+    for element in article.find_all(
+        ["p", "blockquote"]
+    ):
+
+        texto = clean(
+            element.get_text(
                 " ",
-                strip=True
+                strip=True,
             )
         )
 
-        if not text:
+        if not texto:
             continue
 
-        low = text.lower()
+        low = texto.lower()
 
-        # Detenernos cuando aparece contenido posterior.
-        if any(
-            x in low
-            for x in palabras_fin
+        # ----------------------------------------------------
+        # CORTES IMPORTANTES
+        # ----------------------------------------------------
+
+        if (
+            "leer devocionales anteriores" in low
+            or "¿quieres respuestas directo" in low
+            or "suscríbete a nuestro devocional" in low
+            or "me gustaría recibir los correos" in low
+            or "there was an error submitting" in low
+            or "no te enviaremos spam" in low
+            or "powered by kit" in low
+            or "necesitas ayuda" in low
         ):
-
             break
+
+        # ----------------------------------------------------
+        # No incluir el enlace de audio como texto.
+        # ----------------------------------------------------
+
+        if (
+            "escuche este devocional" in low
+            or "haga click aquí" in low
+            or "hacer click" in low
+        ):
+            continue
+
+        # ----------------------------------------------------
+        # Evitar navegación.
+        # ----------------------------------------------------
 
         if any(
             x in low
             for x in (
+                "recibir devocionales diarios",
+                "devocionales diarios gratis",
                 "suscrib",
-                "recibir devocionales",
-                "escuche este devocional",
-                "share",
-                "compartir",
             )
         ):
-
             continue
 
-        if len(text) < 20:
+        if len(texto) < 20:
             continue
 
-        paragraphs.append(text)
+        # Evitar duplicados.
+        if texto in paragraphs:
+            continue
 
-    # Evitar duplicados consecutivos.
-    limpios = []
+        paragraphs.append(texto)
 
-    for p in paragraphs:
+    # --------------------------------------------------------
+    # IMPORTANTE:
+    # Nunca usar todos los <p> de la página como fallback
+    # porque eso es precisamente lo que estaba arrastrando
+    # el devocional anterior y el formulario.
+    # --------------------------------------------------------
 
-        if not limpios or p != limpios[-1]:
-
-            limpios.append(p)
-
-    paragraphs = limpios
+    if not paragraphs:
+        raise RuntimeError(
+            "Bayless: no se encontró el cuerpo "
+            "del devocional."
+        )
 
     # --------------------------------------------------------
     # AUDIO SOUNDCLOUD
@@ -799,57 +954,46 @@ def scrape_bayless():
 
     audio = ""
 
-    # Primero enlace directo al episodio.
-    for a in s.find_all(
+    # Primero buscar enlace dentro del artículo.
+    for a in article.find_all(
         "a",
-        href=True
+        href=True,
     ):
 
-        href = a["href"].strip()
+        href = a.get("href", "").strip()
 
         if (
             "soundcloud.com/respuestasbc/"
-            in href
-            and "/sets/" not in href
+            in href.lower()
+            and "/sets/" not in href.lower()
         ):
 
             audio = href
-
             break
 
-    # Segundo intento: URL en HTML.
+    # Buscar también URLs incrustadas.
     if not audio:
 
         m = re.search(
-            r"https?://(?:www\.)?soundcloud\.com/"
-            r"respuestasbc/[A-Za-z0-9_-]+",
+            r"https?://(?:www\.)?"
+            r"soundcloud\.com/"
+            r"respuestasbc/"
+            r"[A-Za-z0-9_-]+",
             html,
             flags=re.I,
         )
 
         if m:
-
             audio = m.group(0)
-
-    # --------------------------------------------------------
-    # VALIDACIÓN
-    # --------------------------------------------------------
-
-    if not title or not paragraphs:
-
-        raise RuntimeError(
-            "No se pudo extraer título o texto "
-            "de Bayless Conley"
-        )
 
     return {
         "titulo": title,
         "subtitulo": "",
         "versiculo": "",
-        "parrafos": paragraphs[:20],
+        "parrafos": paragraphs[:30],
         "audio_url": audio,
         "audio_tipo": "soundcloud",
-        "link": r.url,
+        "link": clean_url(r.url),
     }
 
 
@@ -859,26 +1003,24 @@ def scrape_bayless():
 
 def scrape_kenneth():
 
-    url = (
-        "https://main.kcmlatino.org/devocional"
-    )
+    url = "https://main.kcmlatino.org/devocional"
 
     r = get(url)
 
     return _scrape_kcm_page(
-        r.url,
-        r.text
+        clean_url(r.url),
+        r.text,
     )
 
 
 def _scrape_kcm_page(
     url,
-    html
+    html,
 ):
 
     s = BeautifulSoup(
         html,
-        "html.parser"
+        "html.parser",
     )
 
     # --------------------------------------------------------
@@ -894,7 +1036,7 @@ def _scrape_kcm_page(
         title = clean(
             h1.get_text(
                 " ",
-                strip=True
+                strip=True,
             )
         )
 
@@ -904,17 +1046,20 @@ def _scrape_kcm_page(
             "meta",
             attrs={
                 "property": "og:title"
-            }
+            },
         )
 
         if og:
 
             title = clean(
-                og.get("content", "")
+                og.get(
+                    "content",
+                    "",
+                )
             )
 
     # --------------------------------------------------------
-    # PÁRRAFOS
+    # TEXTO
     # --------------------------------------------------------
 
     paragraphs = []
@@ -924,17 +1069,17 @@ def _scrape_kcm_page(
         text = clean(
             p.get_text(
                 " ",
-                strip=True
+                strip=True,
             )
         )
 
         if not text:
             continue
 
+        low = text.lower()
+
         if len(text) < 20:
             continue
-
-        low = text.lower()
 
         if any(
             x in low
@@ -946,7 +1091,9 @@ def _scrape_kcm_page(
                 "loading",
             )
         ):
+            continue
 
+        if text in paragraphs:
             continue
 
         paragraphs.append(text)
@@ -957,15 +1104,19 @@ def _scrape_kcm_page(
 
     verse = ""
 
-    for text in paragraphs[:4]:
+    for text in paragraphs[:6]:
+
+        low = text.lower()
 
         if (
             "«" in text
-            or "(hebreos" in text.lower()
+            or "(hebreos" in low
+            or "(salmos" in low
+            or "(juan" in low
+            or "(romanos" in low
         ):
 
             verse = text
-
             break
 
     # --------------------------------------------------------
@@ -975,8 +1126,10 @@ def _scrape_kcm_page(
     audio = extract_mp3(
         html,
         [
-            r"(https://maincms\.nyc3\.digitaloceanspaces\.com/"
-            r"[A-Za-z0-9_./-]+\.mp3)",
+            r"("
+            r"https://maincms\.nyc3\.digitaloceanspaces\.com/"
+            r"[A-Za-z0-9_./-]+\.mp3"
+            r")",
 
             r"(?:src|data-src|audio)"
             r"[\"'=:\s]+"
@@ -985,40 +1138,46 @@ def _scrape_kcm_page(
         ],
     )
 
-    # Algunos templates escapan las barras.
+    # URLs escapadas.
     if not audio:
 
         m = re.search(
             r"(https?:\\?/\\?/"
             r"maincms\.nyc3\.digitaloceanspaces\.com"
-            r"\\?/[A-Za-z0-9_./-]+\.mp3)",
+            r"\\?/"
+            r"[A-Za-z0-9_./-]+\.mp3)",
             html,
             flags=re.I,
         )
 
         if m:
 
-            audio = (
-                m.group(1)
-                .replace("\\/", "/")
+            audio = m.group(
+                1
+            ).replace(
+                "\\/",
+                "/",
             )
 
     # --------------------------------------------------------
     # VALIDACIÓN
     # --------------------------------------------------------
 
-    if not title or not paragraphs:
-
+    if not title:
         raise RuntimeError(
-            "No se pudo extraer título o texto "
-            "de Kenneth Copeland"
+            "Kenneth: no se encontró título."
+        )
+
+    if not paragraphs:
+        raise RuntimeError(
+            "Kenneth: no se encontró texto."
         )
 
     return {
         "titulo": title,
         "subtitulo": "",
         "versiculo": verse,
-        "parrafos": paragraphs[:20],
+        "parrafos": paragraphs[:30],
         "audio_url": audio,
         "audio_tipo": "mp3",
         "link": url,
@@ -1026,35 +1185,33 @@ def _scrape_kcm_page(
 
 
 # ============================================================
-# DATA ANTERIOR
+# CARGAR DATOS ANTERIORES
 # ============================================================
 
 def load_previous():
 
     if not DATA_FILE.exists():
-
         return {}
 
     try:
 
         with DATA_FILE.open(
             "r",
-            encoding="utf-8"
+            encoding="utf-8",
         ) as f:
 
             data = json.load(f)
 
-        return (
-            data
-            if isinstance(data, dict)
-            else {}
-        )
+        if isinstance(data, dict):
+            return data
+
+        return {}
 
     except Exception as exc:
 
         print(
-            "Aviso: no se pudo leer data.json "
-            f"anterior: {exc}",
+            "Aviso: no se pudo leer data.json anterior:",
+            exc,
             file=sys.stderr,
         )
 
@@ -1067,24 +1224,21 @@ def load_previous():
 
 def main():
 
-    # Fecha REAL de Colombia.
-    today = fecha_hoy_colombia()
+    hoy = today_colombia()
 
-    fecha_es = fecha_espanol(today)
+    fecha_hoy = fecha_espanol(hoy)
+
+    ahora = dt.datetime.now(
+        ZoneInfo("America/Bogota")
+    )
 
     old = load_previous()
 
     data = dict(old)
 
-    data["fecha"] = fecha_es
+    data["fecha"] = fecha_hoy
 
-    data["generado"] = (
-        dt.datetime.now(
-            dt.timezone.utc
-        )
-        .isoformat()
-        .replace("+00:00", "Z")
-    )
+    data["generado"] = ahora.isoformat()
 
     fuentes = {
         "encontacto": scrape_encontacto,
@@ -1096,16 +1250,12 @@ def main():
 
     exitos = 0
 
-    # --------------------------------------------------------
-    # ACTUALIZAR CADA FUENTE
-    # --------------------------------------------------------
-
     for clave, fn in fuentes.items():
 
         try:
 
             print(
-                f"\nConsultando {clave}..."
+                f"\n--- Actualizando {clave} ---"
             )
 
             nuevo = fn()
@@ -1113,9 +1263,38 @@ def main():
             if not valid(nuevo):
 
                 raise RuntimeError(
-                    "La fuente respondió, pero faltan "
-                    "título o texto válido"
+                    "La fuente respondió, pero "
+                    "faltan título o texto válido."
                 )
+
+            # ------------------------------------------------
+            # Validaciones específicas adicionales.
+            # ------------------------------------------------
+
+            if clave == "encontacto":
+
+                if nuevo["titulo"].lower() in {
+                    "meditación diaria",
+                    "devocional diario",
+                }:
+                    raise RuntimeError(
+                        "En Contacto devolvió un título general."
+                    )
+
+            if clave == "bayless":
+
+                if nuevo["titulo"].lower() in {
+                    "devocional diario",
+                    "respuestas para cada día",
+                    "bayless conley",
+                }:
+                    raise RuntimeError(
+                        "Bayless devolvió un título general."
+                    )
+
+            # ------------------------------------------------
+            # Guardar.
+            # ------------------------------------------------
 
             data[clave] = nuevo
 
@@ -1125,6 +1304,20 @@ def main():
                 f"OK  - {clave}: "
                 f"{nuevo['titulo']!r}"
             )
+
+            print(
+                f"      Párrafos: "
+                f"{len(nuevo['parrafos'])}"
+            )
+
+            if nuevo.get("audio_url"):
+                print(
+                    "      Audio: OK"
+                )
+            else:
+                print(
+                    "      Audio: no encontrado"
+                )
 
         except Exception as exc:
 
@@ -1137,9 +1330,12 @@ def main():
                 file=sys.stderr,
             )
 
-            # IMPORTANTE:
-            # si la fuente no está lista,
-            # conservamos el contenido anterior.
+            # ------------------------------------------------
+            # MUY IMPORTANTE:
+            # si falla una fuente, NO destruimos el contenido
+            # anterior que sí era válido.
+            # ------------------------------------------------
+
             if valid(
                 old.get(clave)
             ):
@@ -1156,7 +1352,7 @@ def main():
                 data[clave] = None
 
     # --------------------------------------------------------
-    # SEGURIDAD
+    # Nunca guardar un data.json vacío.
     # --------------------------------------------------------
 
     if (
@@ -1169,77 +1365,62 @@ def main():
 
         raise RuntimeError(
             "Ninguna fuente pudo actualizarse "
-            "y no existe contenido anterior válido"
+            "y no existe contenido anterior válido."
         )
 
     # --------------------------------------------------------
-    # GUARDAR
+    # GUARDAR JSON
     # --------------------------------------------------------
 
     with DATA_FILE.open(
         "w",
-        encoding="utf-8"
+        encoding="utf-8",
     ) as f:
 
         json.dump(
             data,
             f,
             ensure_ascii=False,
-            indent=2
+            indent=2,
         )
 
         f.write("\n")
 
     # --------------------------------------------------------
-    # INFORME
+    # RESUMEN
     # --------------------------------------------------------
+
+    print(
+        "\n========================================"
+    )
+
+    print(
+        f"Fecha Colombia: {fecha_hoy}"
+    )
+
+    print(
+        f"Actualización terminada: "
+        f"{exitos}/3 fuentes actualizadas."
+    )
 
     if errores:
 
         print(
             "\nFuentes con problemas:",
-            file=sys.stderr
+            file=sys.stderr,
         )
 
         for error in errores:
 
             print(
                 f" - {error}",
-                file=sys.stderr
+                file=sys.stderr,
             )
 
     print(
-        f"\nActualización terminada: "
-        f"{exitos}/3 fuentes actualizadas."
+        "========================================"
     )
 
-    print(
-        f"Fecha Colombia: {fecha_es}"
-    )
-
-    # Mostrar el resultado final de cada fuente.
-    print("\nEstado final de data.json:")
-
-    for clave in fuentes:
-
-        item = data.get(clave)
-
-        if valid(item):
-
-            print(
-                f"  {clave}: {item['titulo']}"
-            )
-
-        else:
-
-            print(
-                f"  {clave}: SIN DATOS VÁLIDOS"
-            )
-
-
-# ============================================================
-# EJECUCIÓN
-# ============================================================
 
 if __name__ == "__main__":
     main()
