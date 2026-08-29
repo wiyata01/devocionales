@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Extrae texto 100% limpio (sin tarjetas de resumen ni devocionales anteriores) y audios oficiales.
+Extrae texto 100% limpio (destruye bloques de relacionados desde la raíz) y audios oficiales.
 """
 
 import datetime as dt
@@ -102,8 +102,12 @@ def scrape_encontacto():
     url = "https://www.encontactoglobal.org/lea/devocionales-diarios"
     r = get(url)
     s = BeautifulSoup(r.text, "html.parser")
-    html = str(s)
+    
+    # Destruir contenedores de basura desde la raíz HTML
+    for trash in s.find_all(["div", "section", "aside", "footer"], class_=lambda c: c and any(k in str(c).lower() for k in ("related", "card", "sidebar", "footer", "recommended", "more-devotionals", "author-bio"))):
+        trash.decompose()
 
+    html = str(s)
     meditation_marker = None
     for tag in s.find_all(string=re.compile(r"^\s*Meditación diaria\s*$", re.I)):
         meditation_marker = tag.parent
@@ -143,7 +147,6 @@ def scrape_encontacto():
                 if verse:
                     break
 
-    # Audio En Contacto
     audio = ""
     m_audio = re.search(r'(https?:\\?/\\?/[A-Za-z0-9_./-]*azureedge\.net[A-Za-z0-9_./-]+\.mp3)', html, re.I)
     if m_audio:
@@ -172,24 +175,13 @@ def scrape_encontacto():
 
     if start_node:
         for element in start_node.find_all_next():
-            # Frenar si entramos a secciones de tarjetas/relacionados/pie de página
             if element.name in ["h2", "h3", "h4", "div", "footer", "section", "aside"]:
                 texto_elem = clean(element.get_text(" ", strip=True)).lower()
-                elem_class = " ".join(element.get("class", [])).lower()
-                elem_id = str(element.get("id", "")).lower()
-
-                if any(k in elem_class or k in elem_id for k in ("related", "card", "sidebar", "footer", "recommended", "more-devotionals")):
-                    break
                 if any(k in texto_elem for k in ("otros devoc", "biblia en un año", "conectar", "suscríbase", "opciones de lectura")):
                     break
 
             if element.name != "p" or element.find_parent("p"):
                 continue
-
-            # Omitir si el párrafo está dentro de tarjetas o sidebars
-            parent_class_id = " ".join([str(c) for p in element.parents for c in (p.get("class", []) + [p.get("id", "")])]).lower()
-            if any(k in parent_class_id for k in ("related", "card", "sidebar", "footer", "recommended", "widget")):
-                break
 
             texto = clean(element.get_text(" ", strip=True))
             low = texto.lower()
@@ -197,8 +189,7 @@ def scrape_encontacto():
             if any(k in low for k in CORTAR_ENCONTACTO):
                 break
 
-            # Cortar si termina en puntos suspensivos (extractos de otros artículos)
-            if re.search(r"(\.\.\.|…)\s*$", texto):
+            if "..." in texto[-15:] or "…" in texto[-15:]:
                 break
 
             if not texto or texto == verse or len(texto) < 25:
@@ -229,6 +220,12 @@ def scrape_bayless():
     r = get(landing)
     s = BeautifulSoup(r.text, "html.parser")
 
+    # LIMPIEZA RADICAL DE BAYLESS: Destruir widgets de "Relacionados" y botones sociales ANTES de leer
+    for trash in s.find_all(["div", "section", "ul", "aside"], class_=lambda c: c and any(k in str(c).lower() for k in ("related", "sharedaddy", "jp-relatedposts", "crp_related", "widget", "sidebar", "post-grid"))):
+        trash.decompose()
+    for trash in s.find_all(id=lambda i: i and any(k in str(i).lower() for k in ("jp-relatedposts", "sharedaddy", "crp_related"))):
+        trash.decompose()
+
     title = ""
     article_title_tag = None
     for h1 in s.find_all("h1"):
@@ -246,15 +243,10 @@ def scrape_bayless():
         "leer devocionales anteriores", "¿quieres respuestas directo",
         "suscríbete a nuestro devocional", "me gustaría recibir los correos",
         "powered by kit", "necesitas ayuda", "comparte este devocional",
-        "escuche este devocional", "haga click aquí"
+        "compartir este devocional", "escuche este devocional", "haga click aquí"
     )
 
     for element in article.find_all(["p", "blockquote"]):
-        # Detener si el elemento está en bloques de entradas relacionadas
-        parent_classes = " ".join([str(c) for p in element.parents for c in p.get("class", [])]).lower()
-        if any(k in parent_classes for k in ("related", "sharedaddy", "jp-relatedposts", "crp_related")):
-            break
-
         texto = clean(element.get_text(" ", strip=True))
         if not texto:
             continue
@@ -263,8 +255,8 @@ def scrape_bayless():
         if any(k in low for k in CORTAR_BAYLESS):
             break
 
-        # CORTAR INMEDIATAMENTE al detectar puntos suspensivos finales (previsualizaciones de devocionales anteriores)
-        if re.search(r"(\.\.\.|…)\s*$", texto):
+        # Filtro de seguridad adicional para puntos suspensivos en los últimos 30 caracteres
+        if ("..." in texto[-30:] or "…" in texto[-30:]) and len(texto) < 300:
             break
 
         if len(texto) < 25 or texto in paragraphs:
@@ -312,7 +304,6 @@ def scrape_kenneth():
             verse = text
             break
 
-    # Audio Kenneth Copeland (DigitalOcean Spaces MP3)
     audio = ""
     m_do = re.search(r'(https?:\\?/\\?/[A-Za-z0-9_./-]*digitaloceanspaces\.com[A-Za-z0-9_./-]+\.mp3)', html, re.I)
     if m_do:
