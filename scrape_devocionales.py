@@ -136,17 +136,14 @@ def scrape_encontacto():
             title_tag = h
             break
 
-    # Captura estricta del subtítulo real (evitando los botones "A A A")
     subtitle = ""
     if title_tag:
         for element in title_tag.find_all_next(["p", "div", "h3"]):
             texto = clean(element.get_text(" ", strip=True))
             if not texto or texto == title:
                 continue
-            # Ignorar si son los botones de tamaño de texto o fechas
             if re.search(r'^[A\s]+$', texto) or re.search(r'\d{1,2}\s+de\s+[a-záéíóú]+\s+de\s+\d{4}', texto, re.I):
                 continue
-            # Asegurar que sea una oración válida con minúsculas y longitud correcta
             if 20 <= len(texto) <= 300 and re.search(r'[a-záéíóú]', texto):
                 subtitle = texto
                 break
@@ -197,7 +194,6 @@ def scrape_encontacto():
         "titulo": title, "subtitulo": subtitle, "versiculo": verse,
         "parrafos": paragraphs[:20], "audio_url": audio, "audio_tipo": "mp3", "link": clean_url(r.url),
     }
-    
 
 def scrape_bayless():
     landing = "https://www.respuestasbc.com/?redirect_to=latest&post_type=devotional"
@@ -216,7 +212,13 @@ def scrape_bayless():
         break
 
     paragraphs = []
-    article = article_title_tag.find_parent("article") if article_title_tag else s
+    
+    # Búsqueda segura del contenedor para evitar errores si no existe <article>
+    article = None
+    if article_title_tag:
+        article = article_title_tag.find_parent("article")
+    if not article:
+        article = s
 
     CORTAR_BAYLESS = (
         "leer devocionales anteriores", "¿quieres respuestas directo",
