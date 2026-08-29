@@ -197,11 +197,6 @@ def scrape_encontacto():
         "titulo": title, "subtitulo": subtitle, "versiculo": verse,
         "parrafos": paragraphs[:20], "audio_url": audio, "audio_tipo": "mp3", "link": clean_url(r.url),
     }
-    
-    def scrape_encontacto():
-    url = "https://www.encontactoglobal.org/lea/devocionales-diarios"
-    r = get(url)
-    s = BeautifulSoup(r.text, "html.parser")
    
 
 def scrape_bayless():
