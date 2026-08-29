@@ -593,18 +593,28 @@ function escapeHtml(str) {
 }
 
 
-function renderParrafos(parrafos) {
+function renderParrafos(parrafos, fuente) {
 
   if (!parrafos || !parrafos.length) {
     return "";
   }
 
-  return parrafos
+  let filtrados = parrafos;
+
+  // Filtrar textos sobrantes o de "devocionales relacionados" en Bayless Conley
+  if (fuente === "bayless") {
+    filtrados = parrafos.filter(p => {
+      return !p.includes("Salmos 127:1–2 dice: Si Dios no construye") &&
+             !p.includes("Dios nos ha dado Sus promesas porque las quiere cumplir") &&
+             !p.includes("Cada uno de nosotros posee puntos fuertes que Dios nos ha dado");
+    });
+  }
+
+  return filtrados
     .map(p => `<p>${escapeHtml(p)}</p>`)
     .join("");
 
 }
-
 
 /* ---------------------------------------------------------
    COMPARTIR DEVOCIONAL
