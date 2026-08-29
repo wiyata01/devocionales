@@ -197,7 +197,7 @@ def scrape_encontacto():
         "titulo": title, "subtitulo": subtitle, "versiculo": verse,
         "parrafos": paragraphs[:20], "audio_url": audio, "audio_tipo": "mp3", "link": clean_url(r.url),
     }
-   
+    
 
 def scrape_bayless():
     landing = "https://www.respuestasbc.com/?redirect_to=latest&post_type=devotional"
@@ -323,5 +323,5 @@ def main():
         json.dump(data, f, ensure_ascii=False, indent=2)
         f.write("\n")
 
-if __name__ ==- "__main__":
+if __name__ == "__main__":
     main()
