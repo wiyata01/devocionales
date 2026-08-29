@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Extrae texto 100% limpio, sin duplicados ni repeticiones de renglones.
+Extrae texto 100% limpio, capturando subtítulos, párrafos y viñetas sin duplicados.
 """
 
 import datetime as dt
@@ -24,7 +24,7 @@ HEADERS = {
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
         "AppleWebKit/537.36 (KHTML, like Gecko) "
         "Chrome/121.0.0.0 Safari/537.36 "
-        "DevocionalesDiariosBot/4.2"
+        "DevocionalesDiariosBot/4.3"
     ),
     "Accept-Language": "es-ES,es;q=0.9,en;q=0.8",
     "Cache-Control": "no-cache",
@@ -104,13 +104,11 @@ def destroy_garbage(soup):
         btn.decompose()
 
 def agregar_sin_duplicar(lista, texto):
-    """Evita agregar párrafos idénticos o sub-fragmentos repetidos."""
     if not texto or len(texto) < 15:
         return
     texto_low = texto.lower()
     for p in lista:
         p_low = p.lower()
-        # Si el texto ya existe exacto, o uno contiene al otro, evitamos la duplicación
         if texto_low == p_low or texto_low in p_low or p_low in texto_low:
             return
     lista.append(texto)
@@ -137,18 +135,27 @@ def scrape_encontacto():
     if not title and s.find("h1"):
         title = clean(s.find("h1").get_text(" ", strip=True))
 
+    title_tag = None
+    for h in s.find_all(["h1", "h2"]):
+        if clean(h.get_text(" ", strip=True)) == title:
+            title_tag = h
+            break
+
+    # Extracción precisa del subtítulo (frase introductoria bajo el título)
     subtitle = ""
-    verse = ""
-    if meditation_marker:
-        encontrado_title = False
-        for element in meditation_marker.find_all_next(["h1", "h2"]):
+    if title_tag:
+        for element in title_tag.find_all_next(["p", "div", "h3"]):
             texto = clean(element.get_text(" ", strip=True))
-            if texto == title:
-                encontrado_title = True
+            if not texto or texto == title:
                 continue
-            if encontrado_title and texto:
+            if re.search(r'\d{1,2}\s+de\s+[a-záéíóú]+\s+de\s+\d{4}', texto, re.I):
+                continue
+            if len(texto) < 300 and not any(k in texto.lower() for k in ("opciones de lectura", "meditación diaria", "biblia en un año")):
                 subtitle = texto
                 break
+
+    verse = ""
+    if meditation_marker:
         for a in meditation_marker.find_all_next("a", href=True):
             if re.search(r"biblegateway\.com", a.get("href", ""), re.I):
                 verse = clean(a.get_text(" ", strip=True))
@@ -158,12 +165,6 @@ def scrape_encontacto():
     m_audio = re.search(r'(https?:\\?/\\?/[A-Za-z0-9_./-]*azureedge\.net[A-Za-z0-9_./-]+\.mp3)', str(s), re.I)
     if m_audio:
         audio = m_audio.group(1).replace("\\/", "/")
-
-    title_tag = None
-    for h in s.find_all(["h1", "h2"]):
-        if clean(h.get_text(" ", strip=True)) == title:
-            title_tag = h
-            break
 
     paragraphs = []
     start_node = title_tag if title_tag else meditation_marker
@@ -175,8 +176,8 @@ def scrape_encontacto():
     )
 
     if start_node:
-        # Nos limitamos exclusivamente a etiquetas <p> para evitar conflictos con listados anidados
-        for element in start_node.find_all_next("p"):
+        # Se incluyen tanto <p> como <li> para capturar las listas completas sin perder contenido
+        for element in start_node.find_all_next(["p", "li"]):
             if element.find_parent(["nav", "footer", "aside", "div"], class_=lambda c: c and any(k in str(c).lower() for k in ("related", "footer", "sidebar"))):
                 continue
 
@@ -186,8 +187,11 @@ def scrape_encontacto():
             if any(k in low for k in CORTAR_ENCONTACTO) or es_extracto_relacionado(texto):
                 break
 
-            if not texto or texto == verse:
+            if not texto or texto == verse or texto == subtitle:
                 continue
+
+            # Limpiar viñetas repetidas si ya las trae el HTML
+            texto = re.sub(r"^[\•\-\*]\s*", "", texto)
 
             agregar_sin_duplicar(paragraphs, texto)
 
@@ -258,7 +262,7 @@ def scrape_kenneth():
     )
 
     paragraphs = []
-    for element in s.find_all("p"):
+    for element in s.find_all(["p", "li"]):
         if element.find_parent(["nav", "footer", "aside"]):
             continue
         text = clean(element.get_text(" ", strip=True))
@@ -267,6 +271,7 @@ def scrape_kenneth():
         if any(x in low for x in CORTAR_KCM) or es_extracto_relacionado(text):
             break
             
+        text = re.sub(r"^[\•\-\*]\s*", "", text)
         agregar_sin_duplicar(paragraphs, text)
 
     verse = ""
@@ -304,7 +309,7 @@ def main():
     old = load_previous()
     data = dict(old)
     data["fecha"] = fecha_hoy
-    data["generado"] = ahora.isoformat()
+    data["generado"] = ahroa = ahora.isoformat()
 
     fuentes = {"encontacto": scrape_encontacto, "bayless": scrape_bayless, "kenneth": scrape_kenneth}
 
