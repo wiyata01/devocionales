@@ -136,17 +136,18 @@ def scrape_encontacto():
             title_tag = h
             break
 
-    # Captura directa del subtítulo exacto debajo del título principal
+    # Captura estricta del subtítulo real (evitando los botones "A A A")
     subtitle = ""
     if title_tag:
-        # Buscamos el primer párrafo real después del título que no sea fecha ni metadatos
-        for element in title_tag.find_all_next("p"):
+        for element in title_tag.find_all_next(["p", "div", "h3"]):
             texto = clean(element.get_text(" ", strip=True))
             if not texto or texto == title:
                 continue
-            if re.search(r'\d{1,2}\s+de\s+[a-záéíóú]+\s+de\s+\d{4}', texto, re.I):
+            # Ignorar si son los botones de tamaño de texto o fechas
+            if re.search(r'^[A\s]+$', texto) or re.search(r'\d{1,2}\s+de\s+[a-záéíóú]+\s+de\s+\d{4}', texto, re.I):
                 continue
-            if len(texto) > 20 and len(texto) < 300:
+            # Asegurar que sea una oración válida con minúsculas y longitud correcta
+            if 20 <= len(texto) <= 300 and re.search(r'[a-záéíóú]', texto):
                 subtitle = texto
                 break
 
@@ -186,7 +187,6 @@ def scrape_encontacto():
             if not texto or texto == verse:
                 continue
 
-            # Si este párrafo es el subtítulo, lo saltamos de los párrafos normales para que no se repita
             if subtitle and texto == subtitle and not encontro_subtitulo:
                 encontro_subtitulo = True
                 continue
@@ -197,6 +197,12 @@ def scrape_encontacto():
         "titulo": title, "subtitulo": subtitle, "versiculo": verse,
         "parrafos": paragraphs[:20], "audio_url": audio, "audio_tipo": "mp3", "link": clean_url(r.url),
     }
+    
+    def scrape_encontacto():
+    url = "https://www.encontactoglobal.org/lea/devocionales-diarios"
+    r = get(url)
+    s = BeautifulSoup(r.text, "html.parser")
+   
 
 def scrape_bayless():
     landing = "https://www.respuestasbc.com/?redirect_to=latest&post_type=devotional"
