@@ -549,7 +549,7 @@ footer {
 
 /* ---------------------------------------------------------
    1) RADIO
-   --------------------------------------------------------- */
+  --------------------------------------------------------- */
 
 const radioSelect = document.getElementById("radioSelect");
 const radioPlayer  = document.getElementById("radioPlayer");
@@ -580,7 +580,7 @@ radioSelect.addEventListener("change", function () {
 
 /* ---------------------------------------------------------
    2) DEVOCIONALES
-   --------------------------------------------------------- */
+  --------------------------------------------------------- */
 
 function escapeHtml(str) {
 
@@ -608,7 +608,7 @@ function renderParrafos(parrafos) {
 
 /* ---------------------------------------------------------
    COMPARTIR DEVOCIONAL
-   --------------------------------------------------------- */
+  --------------------------------------------------------- */
 
 function compartirDevocional(encodedDevo, fuente) {
 
@@ -671,7 +671,7 @@ function compartirDevocional(encodedDevo, fuente) {
 
   /* -------------------------------------------------------
      CELULARES Y NAVEGADORES CON WEB SHARE
-     ------------------------------------------------------- */
+  ------------------------------------------------------- */
 
   if (navigator.share) {
 
@@ -693,7 +693,7 @@ function compartirDevocional(encodedDevo, fuente) {
 
   /* -------------------------------------------------------
      COMPUTADOR: COPIAR AL PORTAPAPELES
-     ------------------------------------------------------- */
+  ------------------------------------------------------- */
 
   if (
     navigator.clipboard &&
@@ -734,7 +734,7 @@ function compartirDevocional(encodedDevo, fuente) {
 
 /* ---------------------------------------------------------
    3) REPRODUCTORES DE AUDIO
-   --------------------------------------------------------- */
+  --------------------------------------------------------- */
 
 function renderAudio(devo) {
 
@@ -751,7 +751,7 @@ function renderAudio(devo) {
 
   /* -------------------------------------------------------
      SOUNDCLOUD
-     ------------------------------------------------------- */
+  ------------------------------------------------------- */
 
   if (devo.audio_tipo === "soundcloud") {
 
@@ -795,7 +795,7 @@ function renderAudio(devo) {
 
   /* -------------------------------------------------------
      MP3 DIRECTO
-     ------------------------------------------------------- */
+  ------------------------------------------------------- */
 
   return `
 
@@ -824,11 +824,7 @@ function renderAudio(devo) {
 
 /* ---------------------------------------------------------
    4) MOSTRAR CADA DEVOCIONAL
-   --------------------------------------------------------- */
-
-/* ---------------------------------------------------------
-   4) MOSTRAR CADA DEVOCIONAL
-   --------------------------------------------------------- */
+  --------------------------------------------------------- */
 
 function renderCard(
   containerId,
@@ -917,85 +913,9 @@ function renderCard(
 }
 
 
-  /* -------------------------------------------------------
-     CONTENIDO DE LA TARJETA
-     ------------------------------------------------------- */
-
-  section.innerHTML = `
-
-    <h2>
-      ${headerLabel}
-    </h2>
-
-
-    <div class="date">
-      ${escapeHtml(fecha)}
-    </div>
-
-
-    ${
-      devo.titulo
-        ? `
-          <div class="dev-title">
-            ${escapeHtml(devo.titulo)}
-          </div>
-        `
-        : ""
-    }
-
-
-    <div class="text">
-      ${renderParrafos(devo.parrafos)}
-    </div>
-
-
-    <!-- BOTÓN COMPARTIR -->
-
-    <div class="share-area">
-
-      <button
-        class="share-button"
-        type="button"
-        onclick="compartirDevocional(
-          '${encodeURIComponent(JSON.stringify(devo))}',
-          '${fuente}'
-        )">
-
-        ↗ Compartir este devocional
-
-      </button>
-
-    </div>
-
-
-    <!-- AUDIO -->
-
-    ${renderAudio(devo)}
-
-
-    <!-- ENLACE AL DEVOCIONAL ORIGINAL -->
-
-    <div class="actions">
-
-      <a
-        href="${escapeHtml(devo.link)}"
-        target="_blank"
-        rel="noopener">
-
-        Ver devocional completo
-
-      </a>
-
-    </div>
-
-  `;
-
-}
-
-
 /* ---------------------------------------------------------
    5) CARGAR DATA.JSON
-   --------------------------------------------------------- */
+  --------------------------------------------------------- */
 
 async function cargarDevocionales() {
 
@@ -1041,7 +961,7 @@ async function cargarDevocionales() {
 
     /* -----------------------------------------------------
        EN CONTACTO
-       ----------------------------------------------------- */
+  ----------------------------------------------------- */
 
     renderCard(
       "card-encontacto",
@@ -1054,7 +974,7 @@ async function cargarDevocionales() {
 
     /* -----------------------------------------------------
        BAYLESS CONLEY
-       ----------------------------------------------------- */
+  ----------------------------------------------------- */
 
     renderCard(
       "card-bayless",
@@ -1067,7 +987,7 @@ async function cargarDevocionales() {
 
     /* -----------------------------------------------------
        KENNETH COPELAND
-       ----------------------------------------------------- */
+  ----------------------------------------------------- */
 
     renderCard(
       "card-kenneth",
@@ -1114,7 +1034,7 @@ async function cargarDevocionales() {
 
 /* ---------------------------------------------------------
    6) INICIAR
-   --------------------------------------------------------- */
+  --------------------------------------------------------- */
 
 cargarDevocionales();
 
