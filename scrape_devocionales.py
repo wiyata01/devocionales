@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Extrae texto 100% limpio, capturando subtítulos, párrafos y viñetas sin duplicados.
+Extrae texto limpio y asegura la captura exacta del subtítulo en En Contacto.
 """
 
 import datetime as dt
@@ -8,7 +8,6 @@ import json
 import re
 import sys
 from pathlib import Path
-from urllib.parse import urljoin
 
 import requests
 from bs4 import BeautifulSoup
@@ -24,7 +23,7 @@ HEADERS = {
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
         "AppleWebKit/537.36 (KHTML, like Gecko) "
         "Chrome/121.0.0.0 Safari/537.36 "
-        "DevocionalesDiariosBot/4.3"
+        "DevocionalesDiariosBot/4.4"
     ),
     "Accept-Language": "es-ES,es;q=0.9,en;q=0.8",
     "Cache-Control": "no-cache",
@@ -34,10 +33,7 @@ HEADERS = {
 def create_session():
     s = requests.Session()
     retry = Retry(
-        total=4,
-        connect=4,
-        read=4,
-        backoff_factor=2,
+        total=4, connect=4, read=4, backoff_factor=2,
         status_forcelist=(429, 500, 502, 503, 504),
         allowed_methods=frozenset(["GET"]),
         raise_on_status=False,
@@ -75,8 +71,7 @@ def url_no_cache(url):
     return f"{url}{separador}_nocache={ahora}"
 
 def get(url):
-    final_url = url_no_cache(url)
-    r = S.get(final_url, timeout=TIMEOUT, allow_redirects=True, headers={"Cache-Control": "no-cache", "Pragma": "no-cache"})
+    r = S.get(url_no_cache(url), timeout=TIMEOUT, allow_redirects=True, headers={"Cache-Control": "no-cache", "Pragma": "no-cache"})
     r.raise_for_status()
     return r
 
@@ -141,16 +136,17 @@ def scrape_encontacto():
             title_tag = h
             break
 
-    # Extracción precisa del subtítulo (frase introductoria bajo el título)
+    # Captura directa del subtítulo exacto debajo del título principal
     subtitle = ""
     if title_tag:
-        for element in title_tag.find_all_next(["p", "div", "h3"]):
+        # Buscamos el primer párrafo real después del título que no sea fecha ni metadatos
+        for element in title_tag.find_all_next("p"):
             texto = clean(element.get_text(" ", strip=True))
             if not texto or texto == title:
                 continue
             if re.search(r'\d{1,2}\s+de\s+[a-záéíóú]+\s+de\s+\d{4}', texto, re.I):
                 continue
-            if len(texto) < 300 and not any(k in texto.lower() for k in ("opciones de lectura", "meditación diaria", "biblia en un año")):
+            if len(texto) > 20 and len(texto) < 300:
                 subtitle = texto
                 break
 
@@ -175,10 +171,10 @@ def scrape_encontacto():
         "suscríbase", "suscribirse", "correo electrónico", "artículos destacados"
     )
 
+    encontro_subtitulo = False
     if start_node:
-        # Se incluyen tanto <p> como <li> para capturar las listas completas sin perder contenido
-        for element in start_node.find_all_next(["p", "li"]):
-            if element.find_parent(["nav", "footer", "aside", "div"], class_=lambda c: c and any(k in str(c).lower() for k in ("related", "footer", "sidebar"))):
+        for element in start_node.find_all_next("p"):
+            if element.find_parent(["nav", "footer", "aside"]):
                 continue
 
             texto = clean(element.get_text(" ", strip=True))
@@ -187,11 +183,13 @@ def scrape_encontacto():
             if any(k in low for k in CORTAR_ENCONTACTO) or es_extracto_relacionado(texto):
                 break
 
-            if not texto or texto == verse or texto == subtitle:
+            if not texto or texto == verse:
                 continue
 
-            # Limpiar viñetas repetidas si ya las trae el HTML
-            texto = re.sub(r"^[\•\-\*]\s*", "", texto)
+            # Si este párrafo es el subtítulo, lo saltamos de los párrafos normales para que no se repita
+            if subtitle and texto == subtitle and not encontro_subtitulo:
+                encontro_subtitulo = True
+                continue
 
             agregar_sin_duplicar(paragraphs, texto)
 
@@ -262,7 +260,7 @@ def scrape_kenneth():
     )
 
     paragraphs = []
-    for element in s.find_all(["p", "li"]):
+    for element in s.find_all("p"):
         if element.find_parent(["nav", "footer", "aside"]):
             continue
         text = clean(element.get_text(" ", strip=True))
@@ -271,7 +269,6 @@ def scrape_kenneth():
         if any(x in low for x in CORTAR_KCM) or es_extracto_relacionado(text):
             break
             
-        text = re.sub(r"^[\•\-\*]\s*", "", text)
         agregar_sin_duplicar(paragraphs, text)
 
     verse = ""
@@ -309,7 +306,7 @@ def main():
     old = load_previous()
     data = dict(old)
     data["fecha"] = fecha_hoy
-    data["generado"] = ahroa = ahora.isoformat()
+    data["generado"] = ahora.isoformat()
 
     fuentes = {"encontacto": scrape_encontacto, "bayless": scrape_bayless, "kenneth": scrape_kenneth}
 
@@ -325,5 +322,5 @@ def main():
         json.dump(data, f, ensure_ascii=False, indent=2)
         f.write("\n")
 
-if __name__ == "__main__":
+if __name__ ==- "__main__":
     main()
