@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Extrae texto 100% limpio y unificado para En Contacto, Bayless Conley y Kenneth Copeland.
+Extrae texto 100% limpio, sin duplicados ni repeticiones de renglones.
 """
 
 import datetime as dt
@@ -24,7 +24,7 @@ HEADERS = {
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
         "AppleWebKit/537.36 (KHTML, like Gecko) "
         "Chrome/121.0.0.0 Safari/537.36 "
-        "DevocionalesDiariosBot/4.1"
+        "DevocionalesDiariosBot/4.2"
     ),
     "Accept-Language": "es-ES,es;q=0.9,en;q=0.8",
     "Cache-Control": "no-cache",
@@ -103,6 +103,18 @@ def destroy_garbage(soup):
     for btn in soup.find_all(lambda tag: tag.name in ["a", "button", "div", "span"] and "compartir este devocional" in tag.get_text(strip=True).lower()):
         btn.decompose()
 
+def agregar_sin_duplicar(lista, texto):
+    """Evita agregar párrafos idénticos o sub-fragmentos repetidos."""
+    if not texto or len(texto) < 15:
+        return
+    texto_low = texto.lower()
+    for p in lista:
+        p_low = p.lower()
+        # Si el texto ya existe exacto, o uno contiene al otro, evitamos la duplicación
+        if texto_low == p_low or texto_low in p_low or p_low in texto_low:
+            return
+    lista.append(texto)
+
 def scrape_encontacto():
     url = "https://www.encontactoglobal.org/lea/devocionales-diarios"
     r = get(url)
@@ -163,8 +175,9 @@ def scrape_encontacto():
     )
 
     if start_node:
-        for element in start_node.find_all_next(["p", "li"]):
-            if element.find_parent(["nav", "footer", "aside"]):
+        # Nos limitamos exclusivamente a etiquetas <p> para evitar conflictos con listados anidados
+        for element in start_node.find_all_next("p"):
+            if element.find_parent(["nav", "footer", "aside", "div"], class_=lambda c: c and any(k in str(c).lower() for k in ("related", "footer", "sidebar"))):
                 continue
 
             texto = clean(element.get_text(" ", strip=True))
@@ -173,14 +186,10 @@ def scrape_encontacto():
             if any(k in low for k in CORTAR_ENCONTACTO) or es_extracto_relacionado(texto):
                 break
 
-            if not texto or texto == verse or len(texto) < 15:
+            if not texto or texto == verse:
                 continue
-            
-            # Limpiamos cualquier viñeta inicial si el sitio ya la traía pegada
-            texto = re.sub(r"^[\•\-\*]\s*", "", texto)
 
-            if texto not in paragraphs:
-                paragraphs.append(texto)
+            agregar_sin_duplicar(paragraphs, texto)
 
     return {
         "titulo": title, "subtitulo": subtitle, "versiculo": verse,
@@ -221,10 +230,7 @@ def scrape_bayless():
         if any(k in low for k in CORTAR_BAYLESS) or es_extracto_relacionado(texto):
             break
 
-        if len(texto) < 25 or texto in paragraphs:
-            continue
-
-        paragraphs.append(texto)
+        agregar_sin_duplicar(paragraphs, texto)
 
     audio = ""
     for a in article.find_all("a", href=True):
@@ -252,7 +258,7 @@ def scrape_kenneth():
     )
 
     paragraphs = []
-    for element in s.find_all(["p", "li"]):
+    for element in s.find_all("p"):
         if element.find_parent(["nav", "footer", "aside"]):
             continue
         text = clean(element.get_text(" ", strip=True))
@@ -261,11 +267,7 @@ def scrape_kenneth():
         if any(x in low for x in CORTAR_KCM) or es_extracto_relacionado(text):
             break
             
-        if len(text) < 15 or text in paragraphs:
-            continue
-            
-        text = re.sub(r"^[\•\-\*]\s*", "", text)
-        paragraphs.append(text)
+        agregar_sin_duplicar(paragraphs, text)
 
     verse = ""
     for text in paragraphs[:3]:
