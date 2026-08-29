@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Extrae texto limpio y audio oficial para En Contacto, Bayless Conley y Kenneth Copeland.
+Extrae texto 100% limpio (sin menús ni devocionales anteriores) y audios oficiales.
 """
 
 import datetime as dt
@@ -155,39 +155,35 @@ def scrape_encontacto():
                 audio = urljoin(url, src)
                 break
 
-    paragraphs = []
-    title_tag = None
-    for h in s.find_all("h1"):
-        if clean(h.get_text(" ", strip=True)) == title:
-            title_tag = h
-            break
-
-    CORTAR_ENCONTACTO = (
-        "biblia en un año", "otros devocionales", "opciones de lectura",
-        "quiénes somos", "ministerios en contacto", "conectar", "participar",
-        "suscríbase", "suscribirse", "correo electrónico", "facebook", "instagram"
+    # Lista de frases de menús, footers y bio institucional a descartar
+    BASURA_ENCONTACTO = (
+        "quiénes somos", "ministerios en contacto", "charles f. stanley",
+        "fundador de ministerios", "conectar", "participar", "contactarnos",
+        "cómo aportar", "suscripciones", "oración", "oportunidades de empleo",
+        "redes sociales", "facebook", "instagram", "twitter", "youtube",
+        "suscribir", "actualizaciones impresas", "buzón de mensajes",
+        "opciones de lectura", "otros devocionales", "biblia en un año",
+        "lo que creemos", "lo que hacemos", "impacto global", "nuestro fundador",
+        "30 principios de vida", "¿qué sigue?", "dios no desea que vivamos como seres independientes"
     )
 
-    if title_tag:
-        for element in title_tag.find_all_next():
-            if element.name in ["h2", "h3", "div", "footer"]:
-                texto_h = clean(element.get_text(" ", strip=True)).lower()
-                if any(k in texto_h for k in ("otros devoc", "biblia en un año", "conectar", "suscríbase")):
-                    break
+    paragraphs = []
+    for element in s.find_all("p"):
+        texto = clean(element.get_text(" ", strip=True))
+        low = texto.lower()
 
-            if element.name != "p" or element.find_parent("p"):
-                continue
+        # Omitir si pertenece a menús/nav/footer
+        if element.find_parent(["nav", "footer", "header", "aside"]):
+            continue
 
-            texto = clean(element.get_text(" ", strip=True))
-            low = texto.lower()
+        # Omitir si coincide con texto institucional o menús
+        if any(k in low for k in BASURA_ENCONTACTO):
+            continue
 
-            if any(k in low for k in CORTAR_ENCONTACTO):
-                break
+        if not texto or texto == verse or len(texto) < 25:
+            continue
 
-            if not texto or texto == verse or len(texto) < 25:
-                continue
-
-            paragraphs.append(texto)
+        paragraphs.append(texto)
 
     vistos = set()
     limpios = []
@@ -229,16 +225,26 @@ def scrape_bayless():
         "leer devocionales anteriores", "¿quieres respuestas directo",
         "suscríbete a nuestro devocional", "me gustaría recibir los correos",
         "powered by kit", "necesitas ayuda", "comparte este devocional",
-        "escuche este devocional", "haga click aquí"
+        "escuche este devocional", "haga click aquí", "devocionales relacionados"
     )
 
     for element in article.find_all(["p", "blockquote"]):
+        # Omitir si pertenece a widgets de recomendados
+        parent_classes = " ".join([str(c) for p in element.parents for c in p.get("class", [])]).lower()
+        if any(k in parent_classes for k in ("related", "sharedaddy", "jp-relatedposts", "crp_related")):
+            break
+
         texto = clean(element.get_text(" ", strip=True))
         if not texto:
             continue
         low = texto.lower()
 
+        # Frenar si encuentra frases de pie de página
         if any(k in low for k in CORTAR_BAYLESS):
+            break
+
+        # DETECTAR Y CORTAR PREVISUALIZACIONES (Las que terminan en '...' o '…')
+        if texto.endswith("...") or texto.endswith("…"):
             break
 
         if len(texto) < 25 or texto in paragraphs:
@@ -286,7 +292,7 @@ def scrape_kenneth():
             verse = text
             break
 
-    # EXTRACTOR ESPECÍFICO DE AUDIO DE KENNETH COPELAND (DigitalOcean Spaces + soporte URL escapada)
+    # Extractor de audio Kenneth Copeland
     audio = ""
     m_do = re.search(r'(https?:\\?/\\?/[A-Za-z0-9_./-]*digitaloceanspaces\.com[A-Za-z0-9_./-]+\.mp3)', html, re.I)
     if m_do:
