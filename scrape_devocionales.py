@@ -281,14 +281,16 @@ def scrape_kenneth():
             break
 
     audio = ""
-    html = str(s)
-    m_do = re.search(r'(https?:\\?/\\?/[A-Za-z0-9_./-]*digitaloceanspaces\.com[A-Za-z0-9_./-]+\.mp3)', html, re.I)
+    html = r.text  # Usamos r.text directamente para evitar problemas con str(s)
+    
+    # Búsqueda robusta para DigitalOcean (con o sin barras escapadas)
+    m_do = re.search(r'https?://(?:[a-zA-Z0-9_-]+\\?/?)*digitaloceanspaces\.com(?:[a-zA-Z0-9_./-]|\\/)*\.mp3', html, re.I)
     if m_do:
-        audio = m_do.group(1).replace("\\/", "/")
+        audio = m_do.group(0).replace("\\/", "/")
     else:
-        m_general = re.search(r'(https?:\\?/\\?/[A-Za-z0-9_./-]+\.mp3)', html, re.I)
+        m_general = re.search(r'https?://(?:[a-zA-Z0-9_./-]|\\/)*\.mp3', html, re.I)
         if m_general:
-            audio = m_general.group(1).replace("\\/", "/")
+            audio = m_general.group(0).replace("\\/", "/")
 
     return {
         "titulo": title, "subtitulo": "", "versiculo": verse,
