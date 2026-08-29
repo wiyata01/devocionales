@@ -4,8 +4,8 @@ on:
   workflow_dispatch:
 
   schedule:
-    - cron: "*/20 10-12 * * *"
-    - cron: "*/20 13-16 * * *"
+    - cron: "*/20 9-12 * * *"
+   
 
 permissions:
   contents: write
