@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
-Extrae texto 100% limpio. Incluye viñetas y destruye agresivamente 
-todo el contenido relacionado o botones sociales.
+Extrae texto 100% limpio y unificado para En Contacto, Bayless Conley y Kenneth Copeland.
 """
 
 import datetime as dt
@@ -25,7 +24,7 @@ HEADERS = {
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
         "AppleWebKit/537.36 (KHTML, like Gecko) "
         "Chrome/121.0.0.0 Safari/537.36 "
-        "DevocionalesDiariosBot/4.0"
+        "DevocionalesDiariosBot/4.1"
     ),
     "Accept-Language": "es-ES,es;q=0.9,en;q=0.8",
     "Cache-Control": "no-cache",
@@ -93,19 +92,14 @@ def valid(item):
     )
 
 def es_extracto_relacionado(texto):
-    """Detecta si un párrafo es una tarjeta de resumen que termina en '...' o '... Leer más'"""
     texto_low = texto.lower()
     return len(texto_low) < 250 and re.search(r'(\.\.\.|…)\s*(?:leer m[aá]s|read more|\])?\s*$', texto_low)
 
 def destroy_garbage(soup):
-    """Aniquila contenedores de barras laterales, pie de página, relacionados y botones sociales en todo el DOM"""
-    # 1. Por clases comunes de WordPress/Plugins
     for trash in soup.find_all(["div", "section", "aside", "footer", "ul", "nav"], class_=lambda c: c and any(k in str(c).lower() for k in ("related", "card", "sidebar", "footer", "recommended", "more-devotionals", "author-bio", "widget", "social", "share", "awac", "post-nav", "jp-relatedposts", "crp_related"))):
         trash.decompose()
-    # 2. Por IDs comunes
     for trash in soup.find_all(id=lambda i: i and any(k in str(i).lower() for k in ("jp-relatedposts", "sharedaddy", "crp_related", "secondary", "sidebar"))):
         trash.decompose()
-    # 3. Aniquilar botones explícitos de compartir que no tengan clase
     for btn in soup.find_all(lambda tag: tag.name in ["a", "button", "div", "span"] and "compartir este devocional" in tag.get_text(strip=True).lower()):
         btn.decompose()
 
@@ -165,11 +159,10 @@ def scrape_encontacto():
     CORTAR_ENCONTACTO = (
         "biblia en un año", "otros devocionales", "opciones de lectura",
         "quiénes somos", "ministerios en contacto", "conectar", "participar",
-        "suscríbase", "suscribirse", "correo electrónico", "artículos destacados", "videos destacados"
+        "suscríbase", "suscribirse", "correo electrónico", "artículos destacados"
     )
 
     if start_node:
-        # Añadimos 'li' para atrapar las viñetas del devocional
         for element in start_node.find_all_next(["p", "li"]):
             if element.find_parent(["nav", "footer", "aside"]):
                 continue
@@ -183,9 +176,8 @@ def scrape_encontacto():
             if not texto or texto == verse or len(texto) < 15:
                 continue
             
-            # Si es un LI, le agregamos una viñeta para que se vea bien
-            if element.name == "li":
-                texto = f"• {texto}"
+            # Limpiamos cualquier viñeta inicial si el sitio ya la traía pegada
+            texto = re.sub(r"^[\•\-\*]\s*", "", texto)
 
             if texto not in paragraphs:
                 paragraphs.append(texto)
@@ -221,7 +213,7 @@ def scrape_bayless():
         "escuche este devocional", "haga click", "haga clic"
     )
 
-    for element in article.find_all(["p", "blockquote", "li"]):
+    for element in article.find_all(["p", "blockquote"]):
         texto = clean(element.get_text(" ", strip=True))
         if not texto: continue
         low = texto.lower()
@@ -231,9 +223,6 @@ def scrape_bayless():
 
         if len(texto) < 25 or texto in paragraphs:
             continue
-            
-        if element.name == "li":
-            texto = f"• {texto}"
 
         paragraphs.append(texto)
 
@@ -275,9 +264,7 @@ def scrape_kenneth():
         if len(text) < 15 or text in paragraphs:
             continue
             
-        if element.name == "li":
-            text = f"• {text}"
-            
+        text = re.sub(r"^[\•\-\*]\s*", "", text)
         paragraphs.append(text)
 
     verse = ""
