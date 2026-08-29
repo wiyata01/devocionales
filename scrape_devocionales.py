@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-Extrae texto 100% limpio (destruye bloques de relacionados desde la raíz) y audios oficiales.
+Extrae texto 100% limpio. Incluye viñetas y destruye agresivamente 
+todo el contenido relacionado o botones sociales.
 """
 
 import datetime as dt
@@ -23,8 +24,8 @@ HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
         "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/151.0.0.0 Safari/537.36 "
-        "DevocionalesDiariosBot/3.0"
+        "Chrome/121.0.0.0 Safari/537.36 "
+        "DevocionalesDiariosBot/4.0"
     ),
     "Accept-Language": "es-ES,es;q=0.9,en;q=0.8",
     "Cache-Control": "no-cache",
@@ -76,19 +77,12 @@ def url_no_cache(url):
 
 def get(url):
     final_url = url_no_cache(url)
-    r = S.get(
-        final_url,
-        timeout=TIMEOUT,
-        allow_redirects=True,
-        headers={"Cache-Control": "no-cache", "Pragma": "no-cache"},
-    )
+    r = S.get(final_url, timeout=TIMEOUT, allow_redirects=True, headers={"Cache-Control": "no-cache", "Pragma": "no-cache"})
     r.raise_for_status()
     return r
 
 def clean_url(url):
-    if not url:
-        return ""
-    return re.sub(r"[?&]_nocache=\d+", "", url)
+    return re.sub(r"[?&]_nocache=\d+", "", url) if url else ""
 
 def valid(item):
     return (
@@ -98,16 +92,29 @@ def valid(item):
         and any(clean(x) for x in item.get("parrafos", []))
     )
 
+def es_extracto_relacionado(texto):
+    """Detecta si un párrafo es una tarjeta de resumen que termina en '...' o '... Leer más'"""
+    texto_low = texto.lower()
+    return len(texto_low) < 250 and re.search(r'(\.\.\.|…)\s*(?:leer m[aá]s|read more|\])?\s*$', texto_low)
+
+def destroy_garbage(soup):
+    """Aniquila contenedores de barras laterales, pie de página, relacionados y botones sociales en todo el DOM"""
+    # 1. Por clases comunes de WordPress/Plugins
+    for trash in soup.find_all(["div", "section", "aside", "footer", "ul", "nav"], class_=lambda c: c and any(k in str(c).lower() for k in ("related", "card", "sidebar", "footer", "recommended", "more-devotionals", "author-bio", "widget", "social", "share", "awac", "post-nav", "jp-relatedposts", "crp_related"))):
+        trash.decompose()
+    # 2. Por IDs comunes
+    for trash in soup.find_all(id=lambda i: i and any(k in str(i).lower() for k in ("jp-relatedposts", "sharedaddy", "crp_related", "secondary", "sidebar"))):
+        trash.decompose()
+    # 3. Aniquilar botones explícitos de compartir que no tengan clase
+    for btn in soup.find_all(lambda tag: tag.name in ["a", "button", "div", "span"] and "compartir este devocional" in tag.get_text(strip=True).lower()):
+        btn.decompose()
+
 def scrape_encontacto():
     url = "https://www.encontactoglobal.org/lea/devocionales-diarios"
     r = get(url)
     s = BeautifulSoup(r.text, "html.parser")
-    
-    # Destruir contenedores de basura desde la raíz HTML
-    for trash in s.find_all(["div", "section", "aside", "footer"], class_=lambda c: c and any(k in str(c).lower() for k in ("related", "card", "sidebar", "footer", "recommended", "more-devotionals", "author-bio"))):
-        trash.decompose()
+    destroy_garbage(s)
 
-    html = str(s)
     meditation_marker = None
     for tag in s.find_all(string=re.compile(r"^\s*Meditación diaria\s*$", re.I)):
         meditation_marker = tag.parent
@@ -117,46 +124,34 @@ def scrape_encontacto():
     if meditation_marker:
         for element in meditation_marker.find_all_next(["h1", "h2"]):
             texto = clean(element.get_text(" ", strip=True))
-            if not texto or texto.lower() in {"opciones de lectura", "otros devocionales", "otros devocionles"}:
+            if not texto or texto.lower() in {"opciones de lectura", "otros devocionales"}:
                 continue
             title = texto
             break
-
     if not title and s.find("h1"):
         title = clean(s.find("h1").get_text(" ", strip=True))
 
     subtitle = ""
+    verse = ""
     if meditation_marker:
         encontrado_title = False
         for element in meditation_marker.find_all_next(["h1", "h2"]):
             texto = clean(element.get_text(" ", strip=True))
-            if not texto:
-                continue
             if texto == title:
                 encontrado_title = True
                 continue
-            if encontrado_title:
+            if encontrado_title and texto:
                 subtitle = texto
                 break
-
-    verse = ""
-    if meditation_marker:
         for a in meditation_marker.find_all_next("a", href=True):
             if re.search(r"biblegateway\.com", a.get("href", ""), re.I):
                 verse = clean(a.get_text(" ", strip=True))
-                if verse:
-                    break
+                if verse: break
 
     audio = ""
-    m_audio = re.search(r'(https?:\\?/\\?/[A-Za-z0-9_./-]*azureedge\.net[A-Za-z0-9_./-]+\.mp3)', html, re.I)
+    m_audio = re.search(r'(https?:\\?/\\?/[A-Za-z0-9_./-]*azureedge\.net[A-Za-z0-9_./-]+\.mp3)', str(s), re.I)
     if m_audio:
         audio = m_audio.group(1).replace("\\/", "/")
-    else:
-        for tag in s.find_all(["audio", "source"]):
-            src = tag.get("src") or tag.get("data-src")
-            if src and ".mp3" in src.lower():
-                audio = urljoin(url, src)
-                break
 
     title_tag = None
     for h in s.find_all(["h1", "h2"]):
@@ -170,67 +165,47 @@ def scrape_encontacto():
     CORTAR_ENCONTACTO = (
         "biblia en un año", "otros devocionales", "opciones de lectura",
         "quiénes somos", "ministerios en contacto", "conectar", "participar",
-        "suscríbase", "suscribirse", "correo electrónico", "facebook", "instagram"
+        "suscríbase", "suscribirse", "correo electrónico", "artículos destacados", "videos destacados"
     )
 
     if start_node:
-        for element in start_node.find_all_next():
-            if element.name in ["h2", "h3", "h4", "div", "footer", "section", "aside"]:
-                texto_elem = clean(element.get_text(" ", strip=True)).lower()
-                if any(k in texto_elem for k in ("otros devoc", "biblia en un año", "conectar", "suscríbase", "opciones de lectura")):
-                    break
-
-            if element.name != "p" or element.find_parent("p"):
+        # Añadimos 'li' para atrapar las viñetas del devocional
+        for element in start_node.find_all_next(["p", "li"]):
+            if element.find_parent(["nav", "footer", "aside"]):
                 continue
 
             texto = clean(element.get_text(" ", strip=True))
             low = texto.lower()
 
-            if any(k in low for k in CORTAR_ENCONTACTO):
+            if any(k in low for k in CORTAR_ENCONTACTO) or es_extracto_relacionado(texto):
                 break
 
-            if "..." in texto[-15:] or "…" in texto[-15:]:
-                break
-
-            if not texto or texto == verse or len(texto) < 25:
+            if not texto or texto == verse or len(texto) < 15:
                 continue
+            
+            # Si es un LI, le agregamos una viñeta para que se vea bien
+            if element.name == "li":
+                texto = f"• {texto}"
 
-            paragraphs.append(texto)
-
-    vistos = set()
-    limpios = []
-    for p in paragraphs:
-        clave = p.lower()
-        if clave not in vistos:
-            vistos.add(clave)
-            limpios.append(p)
+            if texto not in paragraphs:
+                paragraphs.append(texto)
 
     return {
-        "titulo": title,
-        "subtitulo": subtitle,
-        "versiculo": verse,
-        "parrafos": limpios[:20],
-        "audio_url": audio,
-        "audio_tipo": "mp3",
-        "link": clean_url(r.url),
+        "titulo": title, "subtitulo": subtitle, "versiculo": verse,
+        "parrafos": paragraphs[:20], "audio_url": audio, "audio_tipo": "mp3", "link": clean_url(r.url),
     }
 
 def scrape_bayless():
     landing = "https://www.respuestasbc.com/?redirect_to=latest&post_type=devotional"
     r = get(landing)
     s = BeautifulSoup(r.text, "html.parser")
-
-    # LIMPIEZA RADICAL DE BAYLESS: Destruir widgets de "Relacionados" y botones sociales ANTES de leer
-    for trash in s.find_all(["div", "section", "ul", "aside"], class_=lambda c: c and any(k in str(c).lower() for k in ("related", "sharedaddy", "jp-relatedposts", "crp_related", "widget", "sidebar", "post-grid"))):
-        trash.decompose()
-    for trash in s.find_all(id=lambda i: i and any(k in str(i).lower() for k in ("jp-relatedposts", "sharedaddy", "crp_related"))):
-        trash.decompose()
+    destroy_garbage(s)
 
     title = ""
     article_title_tag = None
     for h1 in s.find_all("h1"):
         texto = clean(h1.get_text(" ", strip=True))
-        if not texto or texto.lower() in {"devocional diario", "respuestas para cada día", "bayless conley"}:
+        if not texto or texto.lower() in {"devocional diario", "respuestas para cada día"}:
             continue
         title = clean(re.sub(r"^\s*#?\s*\d+\s*[-–—:.]?\s*", "", texto))
         article_title_tag = h1
@@ -242,25 +217,23 @@ def scrape_bayless():
     CORTAR_BAYLESS = (
         "leer devocionales anteriores", "¿quieres respuestas directo",
         "suscríbete a nuestro devocional", "me gustaría recibir los correos",
-        "powered by kit", "necesitas ayuda", "comparte este devocional",
-        "compartir este devocional", "escuche este devocional", "haga click aquí"
+        "powered by kit", "necesitas ayuda", "compartir este", "comparte este",
+        "escuche este devocional", "haga click", "haga clic"
     )
 
-    for element in article.find_all(["p", "blockquote"]):
+    for element in article.find_all(["p", "blockquote", "li"]):
         texto = clean(element.get_text(" ", strip=True))
-        if not texto:
-            continue
+        if not texto: continue
         low = texto.lower()
 
-        if any(k in low for k in CORTAR_BAYLESS):
-            break
-
-        # Filtro de seguridad adicional para puntos suspensivos en los últimos 30 caracteres
-        if ("..." in texto[-30:] or "…" in texto[-30:]) and len(texto) < 300:
+        if any(k in low for k in CORTAR_BAYLESS) or es_extracto_relacionado(texto):
             break
 
         if len(texto) < 25 or texto in paragraphs:
             continue
+            
+        if element.name == "li":
+            texto = f"• {texto}"
 
         paragraphs.append(texto)
 
@@ -272,31 +245,40 @@ def scrape_bayless():
             break
 
     return {
-        "titulo": title,
-        "subtitulo": "",
-        "versiculo": "",
-        "parrafos": paragraphs[:20],
-        "audio_url": audio,
-        "audio_tipo": "soundcloud",
-        "link": clean_url(r.url),
+        "titulo": title, "subtitulo": "", "versiculo": "",
+        "parrafos": paragraphs[:20], "audio_url": audio, "audio_tipo": "soundcloud", "link": clean_url(r.url),
     }
 
 def scrape_kenneth():
     url = "https://main.kcmlatino.org/devocional"
     r = get(url)
     s = BeautifulSoup(r.text, "html.parser")
-    html = str(s)
+    destroy_garbage(s)
 
     title = clean(s.find("h1").get_text(" ", strip=True)) if s.find("h1") else ""
 
+    CORTAR_KCM = (
+        "copyright", "todos los derechos reservados", "contenido relacionado",
+        "suscripción", "política de privacidad", "conéctate con nosotros"
+    )
+
     paragraphs = []
-    for p in s.find_all("p"):
-        text = clean(p.get_text(" ", strip=True))
-        low = text.lower()
-        if len(text) < 15 or any(x in low for x in ("copyright", "todos los derechos reservados", "contenido relacionado")):
+    for element in s.find_all(["p", "li"]):
+        if element.find_parent(["nav", "footer", "aside"]):
             continue
-        if text not in paragraphs:
-            paragraphs.append(text)
+        text = clean(element.get_text(" ", strip=True))
+        low = text.lower()
+        
+        if any(x in low for x in CORTAR_KCM) or es_extracto_relacionado(text):
+            break
+            
+        if len(text) < 15 or text in paragraphs:
+            continue
+            
+        if element.name == "li":
+            text = f"• {text}"
+            
+        paragraphs.append(text)
 
     verse = ""
     for text in paragraphs[:3]:
@@ -305,6 +287,7 @@ def scrape_kenneth():
             break
 
     audio = ""
+    html = str(s)
     m_do = re.search(r'(https?:\\?/\\?/[A-Za-z0-9_./-]*digitaloceanspaces\.com[A-Za-z0-9_./-]+\.mp3)', html, re.I)
     if m_do:
         audio = m_do.group(1).replace("\\/", "/")
@@ -314,23 +297,15 @@ def scrape_kenneth():
             audio = m_general.group(1).replace("\\/", "/")
 
     return {
-        "titulo": title,
-        "subtitulo": "",
-        "versiculo": verse,
-        "parrafos": paragraphs[:25],
-        "audio_url": audio,
-        "audio_tipo": "mp3",
-        "link": clean_url(r.url),
+        "titulo": title, "subtitulo": "", "versiculo": verse,
+        "parrafos": paragraphs[:25], "audio_url": audio, "audio_tipo": "mp3", "link": clean_url(r.url),
     }
 
 def load_previous():
-    if not DATA_FILE.exists():
-        return {}
+    if not DATA_FILE.exists(): return {}
     try:
-        with DATA_FILE.open("r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception:
-        return {}
+        with DATA_FILE.open("r", encoding="utf-8") as f: return json.load(f)
+    except Exception: return {}
 
 def main():
     hoy = today_colombia()
@@ -342,21 +317,15 @@ def main():
     data["fecha"] = fecha_hoy
     data["generado"] = ahora.isoformat()
 
-    fuentes = {
-        "encontacto": scrape_encontacto,
-        "bayless": scrape_bayless,
-        "kenneth": scrape_kenneth,
-    }
+    fuentes = {"encontacto": scrape_encontacto, "bayless": scrape_bayless, "kenneth": scrape_kenneth}
 
     for clave, fn in fuentes.items():
         try:
             nuevo = fn()
-            if valid(nuevo):
-                data[clave] = nuevo
+            if valid(nuevo): data[clave] = nuevo
         except Exception as exc:
             print(f"Error en {clave}: {exc}", file=sys.stderr)
-            if valid(old.get(clave)):
-                data[clave] = old[clave]
+            if valid(old.get(clave)): data[clave] = old[clave]
 
     with DATA_FILE.open("w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
