@@ -826,6 +826,10 @@ function renderAudio(devo) {
    4) MOSTRAR CADA DEVOCIONAL
    --------------------------------------------------------- */
 
+/* ---------------------------------------------------------
+   4) MOSTRAR CADA DEVOCIONAL
+   --------------------------------------------------------- */
+
 function renderCard(
   containerId,
   headerLabel,
@@ -837,31 +841,80 @@ function renderCard(
   const section =
     document.getElementById(containerId);
 
-
-  /* Si una fuente no está disponible */
-
   if (!devo) {
-
     section.innerHTML = `
-
-      <h2>
-        ${headerLabel}
-      </h2>
-
+      <h2>${headerLabel}</h2>
       <div class="error-msg">
-
-        No se pudo cargar el devocional de hoy
-        desde la fuente original.
-
-        Intenta de nuevo más tarde.
-
+        No se pudo cargar el devocional de hoy desde la fuente original.
       </div>
-
     `;
-
     return;
-
   }
+
+  section.innerHTML = `
+
+    <h2>
+      ${headerLabel}
+    </h2>
+
+    <div class="date">
+      ${escapeHtml(fecha)}
+    </div>
+
+    ${
+      devo.titulo
+        ? `
+          <div class="dev-title">
+            ${escapeHtml(devo.titulo)}
+          </div>
+        `
+        : ""
+    }
+
+    <!-- SUBTÍTULO AGREGADO AQUÍ -->
+    ${
+      devo.subtitulo && devo.subtitulo !== "A A A"
+        ? `
+          <div style="text-align: center; font-size: 18px; color: #555; margin: -10px 0 22px; font-style: italic; line-height: 1.4;">
+            ${escapeHtml(devo.subtitulo)}
+          </div>
+        `
+        : ""
+    }
+
+    <div class="text">
+      ${renderParrafos(devo.parrafos)}
+    </div>
+
+    <!-- BOTÓN COMPARTIR -->
+    <div class="share-area">
+      <button
+        class="share-button"
+        type="button"
+        onclick="compartirDevocional(
+          '${encodeURIComponent(JSON.stringify(devo))}',
+          '${fuente}'
+        )">
+        ↗ Compartir este devocional
+      </button>
+    </div>
+
+    <!-- AUDIO -->
+    ${renderAudio(devo)}
+
+    <!-- ENLACE AL DEVOCIONAL ORIGINAL -->
+    <div class="actions">
+      <a
+        href="${escapeHtml(devo.link)}"
+        target="_blank"
+        rel="noopener">
+        Ver devocional completo
+      </a>
+    </div>
+
+  `;
+
+}
 
 
   /* -------------------------------------------------------
