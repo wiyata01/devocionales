@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Extrae el texto limpio (sin menús ni pie de página) y el audio de los 3 devocionales.
+Extrae texto limpio y audio oficial para En Contacto, Bayless Conley y Kenneth Copeland.
 """
 
 import datetime as dt
@@ -90,23 +90,6 @@ def clean_url(url):
         return ""
     return re.sub(r"[?&]_nocache=\d+", "", url)
 
-def find_mp3_audio(soup, html_text, base_url=""):
-    for tag in soup.find_all(["audio", "source"]):
-        src = tag.get("src") or tag.get("data-src")
-        if src and ".mp3" in src.lower():
-            return urljoin(base_url, src)
-
-    for a in soup.find_all("a", href=True):
-        href = a.get("href", "").strip()
-        if ".mp3" in href.lower():
-            return urljoin(base_url, href)
-
-    match = re.search(r'https?://[^\s"\'<>]+\.mp3(?:\?[^\s"\'<>]*)?', html_text, re.I)
-    if match:
-        return match.group(0)
-
-    return ""
-
 def valid(item):
     return (
         isinstance(item, dict)
@@ -160,7 +143,17 @@ def scrape_encontacto():
                 if verse:
                     break
 
-    audio = find_mp3_audio(s, html, base_url=url)
+    # Audio En Contacto
+    audio = ""
+    m_audio = re.search(r'(https?:\\?/\\?/[A-Za-z0-9_./-]*azureedge\.net[A-Za-z0-9_./-]+\.mp3)', html, re.I)
+    if m_audio:
+        audio = m_audio.group(1).replace("\\/", "/")
+    else:
+        for tag in s.find_all(["audio", "source"]):
+            src = tag.get("src") or tag.get("data-src")
+            if src and ".mp3" in src.lower():
+                audio = urljoin(url, src)
+                break
 
     paragraphs = []
     title_tag = None
@@ -169,13 +162,10 @@ def scrape_encontacto():
             title_tag = h
             break
 
-    # Frases que indican que ya empezó el menú / pie de página
     CORTAR_ENCONTACTO = (
         "biblia en un año", "otros devocionales", "opciones de lectura",
         "quiénes somos", "ministerios en contacto", "conectar", "participar",
-        "suscríbase", "suscribirse", "correo electrónico", "facebook", "instagram",
-        "twitter", "youtube", "oportunidades de empleo", "nuestro fundador",
-        "impacto global", "lo que creemos"
+        "suscríbase", "suscribirse", "correo electrónico", "facebook", "instagram"
     )
 
     if title_tag:
@@ -191,7 +181,6 @@ def scrape_encontacto():
             texto = clean(element.get_text(" ", strip=True))
             low = texto.lower()
 
-            # Frenar en seco si aparece cualquier frase de menú
             if any(k in low for k in CORTAR_ENCONTACTO):
                 break
 
@@ -200,7 +189,6 @@ def scrape_encontacto():
 
             paragraphs.append(texto)
 
-    # Eliminar duplicados manteniendo orden
     vistos = set()
     limpios = []
     for p in paragraphs:
@@ -250,7 +238,6 @@ def scrape_bayless():
             continue
         low = texto.lower()
 
-        # Detener la extracción inmediatamente al tocar la sección final
         if any(k in low for k in CORTAR_BAYLESS):
             break
 
@@ -299,7 +286,15 @@ def scrape_kenneth():
             verse = text
             break
 
-    audio = find_mp3_audio(s, html, base_url=url)
+    # EXTRACTOR ESPECÍFICO DE AUDIO DE KENNETH COPELAND (DigitalOcean Spaces + soporte URL escapada)
+    audio = ""
+    m_do = re.search(r'(https?:\\?/\\?/[A-Za-z0-9_./-]*digitaloceanspaces\.com[A-Za-z0-9_./-]+\.mp3)', html, re.I)
+    if m_do:
+        audio = m_do.group(1).replace("\\/", "/")
+    else:
+        m_general = re.search(r'(https?:\\?/\\?/[A-Za-z0-9_./-]+\.mp3)', html, re.I)
+        if m_general:
+            audio = m_general.group(1).replace("\\/", "/")
 
     return {
         "titulo": title,
