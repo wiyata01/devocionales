@@ -746,9 +746,13 @@ function compartirDevocional(encodedDevo, fuente) {
    3) REPRODUCTORES DE AUDIO
   --------------------------------------------------------- */
 
+
 function renderAudio(devo) {
 
-  if (!devo.audio_url) {
+  // Busca en varias opciones por si el JSON usa otro nombre de propiedad
+  const audioUrl = devo.audio_url || devo.audio || devo.url_audio;
+
+  if (!audioUrl) {
 
     return `
       <div class="audio-note">
@@ -761,13 +765,13 @@ function renderAudio(devo) {
 
   /* -------------------------------------------------------
      SOUNDCLOUD
-  ------------------------------------------------------- */
+     ------------------------------------------------------- */
 
   if (devo.audio_tipo === "soundcloud") {
 
     const embedSrc =
       "https://w.soundcloud.com/player/?url=" +
-      encodeURIComponent(devo.audio_url) +
+      encodeURIComponent(audioUrl) +
       "&auto_play=false" +
       "&hide_related=true" +
       "&show_comments=false" +
@@ -805,7 +809,7 @@ function renderAudio(devo) {
 
   /* -------------------------------------------------------
      MP3 DIRECTO
-  ------------------------------------------------------- */
+     ------------------------------------------------------- */
 
   return `
 
@@ -818,7 +822,7 @@ function renderAudio(devo) {
       <audio
         controls
         preload="none"
-        src="${escapeHtml(devo.audio_url)}">
+        src="${escapeHtml(audioUrl)}">
       </audio>
 
       <div class="audio-note">
