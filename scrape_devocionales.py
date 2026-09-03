@@ -694,172 +694,387 @@ def encontrar_titulo_bayless(
     )
 
 
+
 def scrape_bayless():
+    listado_url = "https://www.respuestasbc.com/devotional/"
 
-    listado_url = (
-        "https://www.respuestasbc.com/"
-        "devotional/"
-    )
+    # ======================================================
+    # 1. OBTENER EL LISTADO
+    # ======================================================
 
-    # ------------------------------------------------------
-    # 1. Listado
-    # ------------------------------------------------------
-
-    r_listado = get(
-        listado_url
-    )
+    r_listado = get(listado_url)
 
     listado = BeautifulSoup(
         r_listado.text,
-        "html.parser",
+        "html.parser"
     )
 
-    # ------------------------------------------------------
-    # 2. Encontramos todos los episodios y elegimos
-    #    el de número más alto.
-    # ------------------------------------------------------
+    candidatos = []
 
-    candidato = encontrar_url_bayless_actual(
-        listado
+    for a in listado.find_all("a", href=True):
+
+        href = a.get("href", "").strip()
+
+        if not href:
+            continue
+
+        if "/devotional/" not in href.lower():
+            continue
+
+        texto = clean(
+            a.get_text(" ", strip=True)
+        )
+
+        numero = -1
+
+        # Número en el texto: #246
+        m = re.search(
+            r"#\s*(\d+)\b",
+            texto,
+            re.I
+        )
+
+        if m:
+            numero = int(m.group(1))
+
+        # Número en la URL: /devotional/246-
+        if numero < 0:
+
+            m = re.search(
+                r"/devotional/(\d+)-",
+                href,
+                re.I
+            )
+
+            if m:
+                numero = int(m.group(1))
+
+        if numero < 0:
+            continue
+
+        candidatos.append({
+            "numero": numero,
+            "url": urljoin(
+                r_listado.url,
+                href
+            ),
+            "texto": texto
+        })
+
+    if not candidatos:
+        raise RuntimeError(
+            "No se encontraron episodios numerados de Bayless"
+        )
+
+    # El episodio más reciente es el número mayor.
+    candidatos.sort(
+        key=lambda x: x["numero"],
+        reverse=True
     )
 
-    enlace_actual = candidato[
-        "url"
-    ]
+    candidato = candidatos[0]
 
-    numero_actual = candidato[
-        "numero"
-    ]
+    articulo_url = candidato["url"]
+    numero_actual = candidato["numero"]
 
-    # ------------------------------------------------------
-    # 3. Abrimos el artículo individual.
-    # ------------------------------------------------------
-
-    r = get(
-        enlace_actual
+    print(
+        f"Bayless seleccionado: #{numero_actual} -> {articulo_url}"
     )
+
+    # ======================================================
+    # 2. OBTENER LA PÁGINA DEL EPISODIO
+    # ======================================================
+
+    r = get(articulo_url)
 
     s = BeautifulSoup(
         r.text,
-        "html.parser",
+        "html.parser"
     )
 
-    # NO usamos destroy_garbage() aquí.
-    # La estructura del artículo puede tener clases
-    # que coincidan con palabras que ese filtro elimina.
+    # ======================================================
+    # 3. TÍTULO
+    # ======================================================
 
-    # ------------------------------------------------------
-    # 4. Título
-    # ------------------------------------------------------
+    title = ""
+    title_tag = None
 
-    (
-        title,
-        article_title_tag,
-        numero_pagina,
-    ) = encontrar_titulo_bayless(
-        s
-    )
+    for h in s.find_all(["h1", "h2", "h3"]):
 
-    if not title:
-        raise RuntimeError(
-            "No se encontró el título "
-            "del devocional de Bayless"
+        texto = clean(
+            h.get_text(" ", strip=True)
         )
 
-    # ------------------------------------------------------
-    # 5. Verificación del número
-    # ------------------------------------------------------
+        if not texto:
+            continue
 
-    if numero_actual >= 0:
+        low = texto.lower()
 
-        texto_pagina = clean(
-            s.get_text(
-                " ",
-                strip=True,
-            )
-        )
+        if low in (
+            "devocional diario",
+            "respuestas para cada día",
+        ):
+            continue
 
-        corresponde = re.search(
-            r"#\s*"
-            + str(numero_actual)
-            + r"\b",
-            texto_pagina,
-            re.I,
-        )
-
-        if not corresponde:
-
-            corresponde = re.search(
-                r"/devotional/"
-                + str(numero_actual)
-                + r"-",
-                clean_url(
-                    r.url
-                ).lower(),
-            )
-
-        if not corresponde:
-            raise RuntimeError(
-                "El artículo obtenido no corresponde "
-                f"al episodio #{numero_actual} de Bayless"
-            )
-
-    # ------------------------------------------------------
-    # 6. Texto del devocional
-    # ------------------------------------------------------
-
-    paragraphs = []
-
-    if article_title_tag:
-
-        for element in article_title_tag.find_all_next(
-            [
-                "p",
-                "blockquote",
-            ]
+        # Preferimos el encabezado que contiene #246.
+        if re.search(
+            r"#\s*" + str(numero_actual) + r"\b",
+            texto,
+            re.I
         ):
 
-            if element.find_parent(
-                [
-                    "nav",
-                    "footer",
-                    "aside",
-                ]
-            ):
-                continue
+            title = clean(
+                re.sub(
+                    r"^\s*#?\s*\d+\s*[-–—:.]?\s*",
+                    "",
+                    texto
+                )
+            )
+
+            title_tag = h
+            break
+
+    # Respaldo.
+    if not title:
+
+        for h in s.find_all(["h1", "h2", "h3"]):
 
             texto = clean(
-                element.get_text(
-                    " ",
-                    strip=True,
-                )
+                h.get_text(" ", strip=True)
             )
 
             if not texto:
                 continue
 
-            low = texto.lower()
+            if texto.lower() in (
+                "devocional diario",
+                "respuestas para cada día",
+            ):
+                continue
 
-            # Fin del devocional.
+            title = clean(
+                re.sub(
+                    r"^\s*#?\s*\d+\s*[-–—:.]?\s*",
+                    "",
+                    texto
+                )
+            )
+
+            title_tag = h
+            break
+
+    if not title:
+        raise RuntimeError(
+            "No se encontró el título del devocional de Bayless"
+        )
+
+    print(
+        f"Bayless título: {title}"
+    )
+
+    # ======================================================
+    # 4. COMPROBAR QUE ES EL EPISODIO CORRECTO
+    # ======================================================
+
+    texto_total = clean(
+        s.get_text(" ", strip=True)
+    )
+
+    if not re.search(
+        r"#\s*" + str(numero_actual) + r"\b",
+        texto_total,
+        re.I
+    ):
+
+        if not re.search(
+            r"/devotional/"
+            + str(numero_actual)
+            + r"-",
+            clean_url(r.url).lower()
+        ):
+
+            raise RuntimeError(
+                "La página de Bayless no corresponde "
+                f"al episodio #{numero_actual}"
+            )
+
+    # ======================================================
+    # 5. LOCALIZAR EL CONTENEDOR DEL ARTÍCULO
+    # ======================================================
+
+    contenedor = None
+
+    # Primero buscamos contenedores habituales de WordPress.
+    selectores = [
+        "article",
+        ".entry-content",
+        ".post-content",
+        ".entry-content-single",
+        ".single-post-content",
+        ".td-post-content",
+        ".post-body",
+        ".article-content",
+        ".content-area",
+        "main",
+    ]
+
+    for selector in selectores:
+
+        encontrado = s.select_one(selector)
+
+        if not encontrado:
+            continue
+
+        texto_encontrado = clean(
+            encontrado.get_text(
+                " ",
+                strip=True
+            )
+        )
+
+        # Nos quedamos con un contenedor que realmente
+        # tenga una cantidad importante de texto.
+        if len(texto_encontrado) > 300:
+
+            contenedor = encontrado
+            break
+
+    # Si no encontramos un contenedor claro,
+    # usamos el documento completo.
+    if contenedor is None:
+        contenedor = s
+
+    # ======================================================
+    # 6. EXTRAER TEXTO
+    # ======================================================
+
+    paragraphs = []
+
+    # ------------------------------------------------------
+    # Primero intentamos extraer elementos de texto
+    # ------------------------------------------------------
+
+    elementos = contenedor.find_all(
+        ["p", "blockquote", "li"]
+    )
+
+    for element in elementos:
+
+        # No tomar navegación/footer/sidebar.
+        if element.find_parent(
+            [
+                "nav",
+                "footer",
+                "aside",
+            ]
+        ):
+            continue
+
+        texto = clean(
+            element.get_text(
+                " ",
+                strip=True
+            )
+        )
+
+        if not texto:
+            continue
+
+        low = texto.lower()
+
+        # Inicio del área que ya no pertenece al devocional.
+        if (
+            "escuche este devocional" in low
+            or "escucha este devocional" in low
+        ):
+            break
+
+        if any(
+            basura in low
+            for basura in (
+                "leer devocionales anteriores",
+                "¿quieres respuestas directo",
+                "suscríbete a nuestro devocional",
+                "me gustaría recibir los correos",
+                "powered by kit",
+                "necesitas ayuda",
+                "compartir este devocional",
+                "comparte este devocional",
+                "haga click",
+                "haga clic",
+                "previous",
+                "next",
+            )
+        ):
+            break
+
+        if len(texto) < 15:
+            continue
+
+        if es_extracto_relacionado(texto):
+            continue
+
+        agregar_sin_duplicar(
+            paragraphs,
+            texto
+        )
+
+    # ======================================================
+    # 7. RESPALDO IMPORTANTE
+    #
+    # Si el sitio no usa <p>, tomamos el texto plano
+    # del contenedor.
+    # ======================================================
+
+    if not paragraphs:
+
+        texto_contenedor = clean(
+            contenedor.get_text(
+                "\n",
+                strip=True
+            )
+        )
+
+        lineas = []
+
+        for linea in texto_contenedor.splitlines():
+
+            linea = clean(linea)
+
+            if not linea:
+                continue
+
+            lineas.append(linea)
+
+        iniciar = False
+
+        for linea in lineas:
+
+            low = linea.lower()
+
+            # Empezamos después del título.
+            if title.lower() in low:
+                iniciar = True
+                continue
+
+            if not iniciar:
+                continue
+
+            # Final del artículo.
             if (
-                "escuche este devocional"
-                in low
-                or "escucha este devocional"
-                in low
+                "escuche este devocional" in low
+                or "escucha este devocional" in low
             ):
                 break
 
-            # Elementos de navegación,
-            # suscripción y compartir.
             if any(
-                k in low
-                for k in (
+                basura in low
+                for basura in (
                     "leer devocionales anteriores",
                     "¿quieres respuestas directo",
                     "suscríbete a nuestro devocional",
                     "me gustaría recibir los correos",
                     "powered by kit",
-                    "necesitas ayuda",
                     "compartir este",
                     "comparte este",
                     "haga click",
@@ -868,98 +1083,109 @@ def scrape_bayless():
             ):
                 break
 
-            if es_extracto_relacionado(
-                texto
-            ):
+            if len(linea) < 15:
                 continue
 
             agregar_sin_duplicar(
                 paragraphs,
-                texto,
+                linea
             )
 
-    # ------------------------------------------------------
-    # 7. Segundo respaldo de texto
-    # ------------------------------------------------------
+    # ======================================================
+    # 8. ÚLTIMO RESPALDO:
+    #    BUSCAR TEXTO ENTRE EL TÍTULO Y
+    #    "ESCUCHE ESTE DEVOCIONAL"
+    # ======================================================
 
     if not paragraphs:
 
-        for element in s.find_all(
-            [
-                "p",
-                "blockquote",
-            ]
-        ):
-
-            if element.find_parent(
-                [
-                    "nav",
-                    "footer",
-                    "aside",
-                ]
-            ):
-                continue
-
-            texto = clean(
-                element.get_text(
-                    " ",
-                    strip=True,
-                )
-            )
-
-            if not texto:
-                continue
-
-            low = texto.lower()
-
-            if (
-                "escuche este devocional"
-                in low
-                or "escucha este devocional"
-                in low
-            ):
-                break
-
-            if any(
-                k in low
-                for k in (
-                    "leer devocionales anteriores",
-                    "suscríbete a nuestro devocional",
-                    "me gustaría recibir los correos",
-                    "powered by kit",
-                    "compartir este",
-                    "comparte este",
-                    "haga click",
-                    "haga clic",
-                )
-            ):
-                break
-
-            agregar_sin_duplicar(
-                paragraphs,
-                texto,
-            )
-
-    if not paragraphs:
-        raise RuntimeError(
-            "No se encontró el texto del devocional "
-            "actual de Bayless"
+        texto_plano = s.get_text(
+            "\n",
+            strip=True
         )
 
-    # ------------------------------------------------------
-    # 8. Audio SoundCloud
-    # ------------------------------------------------------
+        lineas = [
+            clean(x)
+            for x in texto_plano.splitlines()
+            if clean(x)
+        ]
+
+        indice_titulo = -1
+
+        for i, linea in enumerate(lineas):
+
+            if (
+                title.lower() in
+                linea.lower()
+            ):
+                indice_titulo = i
+                break
+
+        if indice_titulo >= 0:
+
+            for linea in lineas[
+                indice_titulo + 1:
+            ]:
+
+                low = linea.lower()
+
+                if (
+                    "escuche este devocional"
+                    in low
+                    or "escucha este devocional"
+                    in low
+                ):
+                    break
+
+                if len(linea) < 15:
+                    continue
+
+                if any(
+                    basura in low
+                    for basura in (
+                        "leer devocionales anteriores",
+                        "suscríbete",
+                        "powered by kit",
+                        "compartir este",
+                        "comparte este",
+                    )
+                ):
+                    break
+
+                agregar_sin_duplicar(
+                    paragraphs,
+                    linea
+                )
+
+    # ======================================================
+    # 9. VALIDAR TEXTO
+    # ======================================================
+
+    if not paragraphs:
+
+        raise RuntimeError(
+            "No se encontró el texto del devocional actual de Bayless"
+        )
+
+    print(
+        f"Bayless párrafos encontrados: {len(paragraphs)}"
+    )
+
+    # ======================================================
+    # 10. AUDIO SOUNDCLOUD
+    # ======================================================
 
     audio = ""
 
+    # A) enlaces normales
     for a in s.find_all(
         "a",
-        href=True,
+        href=True
     ):
 
         href = a.get(
             "href",
-            "",
+            ""
         ).strip()
 
         if (
@@ -969,27 +1195,24 @@ def scrape_bayless():
         ):
 
             audio = href
-
             break
 
-    # Respaldo con iframe/embed.
+    # B) iframe / embed
     if not audio:
 
-        for iframe in s.find_all(
-            [
-                "iframe",
-                "embed",
-            ]
+        for elemento in s.find_all(
+            ["iframe", "embed"]
         ):
 
             for atributo in (
                 "src",
                 "data-src",
+                "data-url",
             ):
 
-                valor = iframe.get(
+                valor = elemento.get(
                     atributo,
-                    "",
+                    ""
                 ).strip()
 
                 if (
@@ -999,31 +1222,25 @@ def scrape_bayless():
                 ):
 
                     audio = valor
-
                     break
 
             if audio:
                 break
 
-    # Respaldo final buscando directamente en HTML.
+    # C) HTML directo
     if not audio:
 
-        patrones = (
-            r"https?://(?:www\.)?"
-            r"soundcloud\.com/respuestasbc/"
-            r"[A-Za-z0-9_-]+",
+        patrones_audio = [
+            r"https?://(?:www\.)?soundcloud\.com/respuestasbc/[A-Za-z0-9_-]+",
+            r"https:\\/\\/(?:www\\.)?soundcloud\.com\\/respuestasbc\\/[A-Za-z0-9_-]+",
+        ]
 
-            r"https:\\/\\/(?:www\\.)?"
-            r"soundcloud\.com\\/respuestasbc\\/"
-            r"[A-Za-z0-9_-]+",
-        )
-
-        for patron in patrones:
+        for patron in patrones_audio:
 
             m_audio = re.search(
                 patron,
                 r.text,
-                re.I,
+                re.I
             )
 
             if m_audio:
@@ -1032,21 +1249,26 @@ def scrape_bayless():
                     m_audio.group(0)
                     .replace(
                         "\\/",
-                        "/",
+                        "/"
                     )
                 )
 
                 break
 
     if not audio:
+
         raise RuntimeError(
             "No se encontró el audio SoundCloud "
             "del devocional actual de Bayless"
         )
 
-    # ------------------------------------------------------
-    # 9. Resultado
-    # ------------------------------------------------------
+    print(
+        f"Bayless audio: {audio}"
+    )
+
+    # ======================================================
+    # 11. DEVOLVER DATOS
+    # ======================================================
 
     return {
         "titulo": title,
@@ -1057,8 +1279,6 @@ def scrape_bayless():
         "audio_tipo": "soundcloud",
         "link": clean_url(r.url),
     }
-
-
 # ==========================================================
 # KENNETH COPELAND
 # ==========================================================
