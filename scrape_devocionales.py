@@ -196,24 +196,84 @@ def scrape_encontacto():
     }
 
 def scrape_bayless():
-    landing = "https://www.respuestasbc.com/?redirect_to=latest&post_type=devotional"
-    r = get(landing)
+    # La página /devotional/ es el LISTADO. El primer artículo con número
+    # es el devocional actual. Entramos en ese artículo para obtener el texto
+    # completo y el audio correspondiente.
+    listado_url = "https://www.respuestasbc.com/devotional/"
+    r_listado = get(listado_url)
+    listado = BeautifulSoup(r_listado.text, "html.parser")
+
+    enlace_actual = ""
+    numero_actual = -1
+
+    # Buscamos los enlaces de artículos del listado. Se toma el primero que
+    # tenga formato de devocional (#246, #245, etc.), que es el que aparece
+    # arriba en el listado y por tanto corresponde al día actual.
+    for a in listado.find_all("a", href=True):
+        href = a.get("href", "").strip()
+        texto = clean(a.get_text(" ", strip=True))
+
+        if not href or not texto:
+            continue
+
+        if "/devotional/" not in href.lower():
+            continue
+
+        m_numero = re.search(r"#\s*(\d+)\b", texto)
+        if not m_numero:
+            # Algunos temas pueden llevar el número solamente en la URL.
+            m_url = re.search(r"/devotional/(\d+)-", href.lower())
+            if not m_url:
+                continue
+            numero = int(m_url.group(1))
+        else:
+            numero = int(m_numero.group(1))
+
+        enlace_actual = href
+        numero_actual = numero
+        break
+
+    if not enlace_actual:
+        raise RuntimeError("No se encontró el devocional actual en el listado de Bayless")
+
+    # Convertimos enlaces relativos en absolutos y quitamos parámetros de
+    # caché solamente al guardar el resultado final.
+    from urllib.parse import urljoin
+    articulo_url = urljoin(r_listado.url, enlace_actual)
+
+    r = get(articulo_url)
     s = BeautifulSoup(r.text, "html.parser")
     destroy_garbage(s)
 
     title = ""
     article_title_tag = None
-    for h1 in s.find_all("h1"):
-        texto = clean(h1.get_text(" ", strip=True))
-        if not texto or texto.lower() in {"devocional diario", "respuestas para cada día"}:
+
+    # En la página individual el título aparece como '#246 La motivación correcta'.
+    # Conservamos el comportamiento anterior: guardar solamente el título.
+    for h in s.find_all(["h1", "h2"]):
+        texto = clean(h.get_text(" ", strip=True))
+        if not texto:
             continue
-        title = clean(re.sub(r"^\s*#?\s*\d+\s*[-–—:.]?\s*", "", texto))
-        article_title_tag = h1
-        break
+        if texto.lower() in {"devocional diario", "respuestas para cada día"}:
+            continue
+        if re.search(r"#\s*\d+\b", texto):
+            title = clean(re.sub(r"^\s*#?\s*\d+\s*[-–—:.]?\s*", "", texto))
+            article_title_tag = h
+            break
+
+    if not title:
+        # Respaldo por si el sitio cambia el formato del encabezado.
+        for h in s.find_all(["h1", "h2"]):
+            texto = clean(h.get_text(" ", strip=True))
+            if texto and texto.lower() not in {"devocional diario", "respuestas para cada día"}:
+                title = clean(re.sub(r"^\s*#?\s*\d+\s*[-–—:.]?\s*", "", texto))
+                article_title_tag = h
+                break
+
+    if not title:
+        raise RuntimeError("No se encontró el título del devocional de Bayless")
 
     paragraphs = []
-    
-    # Búsqueda segura del contenedor para evitar errores si no existe <article>
     article = None
     if article_title_tag:
         article = article_title_tag.find_parent("article")
@@ -227,9 +287,11 @@ def scrape_bayless():
         "escuche este devocional", "haga click", "haga clic"
     )
 
+    # El contenido real está en los párrafos de la página individual.
     for element in article.find_all(["p", "blockquote"]):
         texto = clean(element.get_text(" ", strip=True))
-        if not texto: continue
+        if not texto:
+            continue
         low = texto.lower()
 
         if any(k in low for k in CORTAR_BAYLESS) or es_extracto_relacionado(texto):
@@ -237,16 +299,50 @@ def scrape_bayless():
 
         agregar_sin_duplicar(paragraphs, texto)
 
+    if not paragraphs:
+        raise RuntimeError("No se encontró el texto del devocional actual de Bayless")
+
+    # El audio oficial aparece en la página individual como un enlace de
+    # SoundCloud, por ejemplo /respuestasbc/246-la-motivacin-correcta.
     audio = ""
+
     for a in article.find_all("a", href=True):
         href = a.get("href", "").strip()
         if "soundcloud.com/respuestasbc/" in href.lower() and "/sets/" not in href.lower():
             audio = href
             break
 
+    # Respaldo: buscar también SoundCloud en todo el HTML de la página.
+    if not audio:
+        m_audio = re.search(
+            r"https?://(?:www\.)?soundcloud\.com/respuestasbc/[A-Za-z0-9_-]+",
+            r.text,
+            re.I,
+        )
+        if m_audio:
+            audio = m_audio.group(0)
+
+    if not audio:
+        raise RuntimeError("No se encontró el audio SoundCloud del devocional actual de Bayless")
+
+    # Comprobación final: si conseguimos el número del listado, verificamos
+    # que la página individual corresponde al mismo episodio. Esto evita que
+    # un cambio extraño del sitio vuelva a guardar un artículo viejo.
+    if numero_actual >= 0:
+        texto_pagina = clean(s.get_text(" ", strip=True))
+        if not re.search(r"#\s*" + str(numero_actual) + r"\b", texto_pagina):
+            raise RuntimeError(
+                f"El artículo obtenido no corresponde al episodio #{numero_actual} de Bayless"
+            )
+
     return {
-        "titulo": title, "subtitulo": "", "versiculo": "",
-        "parrafos": paragraphs[:20], "audio_url": audio, "audio_tipo": "soundcloud", "link": clean_url(r.url),
+        "titulo": title,
+        "subtitulo": "",
+        "versiculo": "",
+        "parrafos": paragraphs[:20],
+        "audio_url": audio,
+        "audio_tipo": "soundcloud",
+        "link": clean_url(r.url),
     }
 
 def scrape_kenneth():
