@@ -601,21 +601,45 @@ function renderParrafos(parrafos, fuente) {
 
   let filtrados = parrafos;
 
-  // Filtrar textos sobrantes o de "devocionales relacionados" en Bayless Conley
+  // Limpiar textos sobrantes que vienen de la página fuente
+  // de Bayless Conley.
   if (fuente === "bayless") {
+
     filtrados = parrafos.filter(p => {
-      return !p.includes("Salmos 127:1–2 dice: Si Dios no construye") &&
-             !p.includes("Dios nos ha dado Sus promesas porque las quiere cumplir") &&
-             !p.includes("Cada uno de nosotros posee puntos fuertes que Dios nos ha dado");
+
+      const texto = (p || "")
+        .trim()
+        .toLowerCase();
+
+      return (
+        !texto.includes("skip to main content") &&
+        !texto.includes("horario de transmisión") &&
+        !texto.includes("devocional diario") &&
+        !texto.includes("respuestas para cada día") &&
+        !texto.includes("recibir devocionales diarios") &&
+
+        !texto.includes(
+          "salmos 127:1–2 dice: si dios no construye"
+        ) &&
+
+        !texto.includes(
+          "dios nos ha dado sus promesas porque las quiere cumplir"
+        ) &&
+
+        !texto.includes(
+          "cada uno de nosotros posee puntos fuertes que dios nos ha dado"
+        )
+      );
+
     });
   }
 
   return filtrados
     .map(p => `<p>${escapeHtml(p)}</p>`)
     .join("");
-
 }
-
+   
+   
 /* ---------------------------------------------------------
    COMPARTIR DEVOCIONAL
   --------------------------------------------------------- */
