@@ -3,7 +3,7 @@ name: Actualizar devocionales diarios
 on:
   schedule:
     # 09:00 UTC = 04:00 en Colombia (America/Bogota)
-    - cron: "0 9 * * *"
+    - cron: "*/30 8-11 * * *"
   workflow_dispatch: {}
 
 permissions:
