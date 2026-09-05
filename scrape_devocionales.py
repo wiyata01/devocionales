@@ -75,7 +75,9 @@ def clean(text):
 
 
 def today_colombia():
-    return dt.datetime.now(ZoneInfo("America/Bogota")).date()
+    return dt.datetime.now(
+        ZoneInfo("America/Bogota")
+    ).date()
 
 
 def fecha_espanol(fecha=None):
@@ -97,15 +99,24 @@ def fecha_espanol(fecha=None):
         "diciembre",
     ]
 
-    return f"{fecha.day} de {meses[fecha.month - 1]} de {fecha.year}"
+    return (
+        f"{fecha.day} de "
+        f"{meses[fecha.month - 1]} de "
+        f"{fecha.year}"
+    )
 
 
 def url_no_cache(url):
     separador = "&" if "?" in url else "?"
 
-    ahora = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%d%H%M%S")
+    ahora = dt.datetime.now(
+        dt.timezone.utc
+    ).strftime("%Y%m%d%H%M%S")
 
-    return f"{url}{separador}_nocache={ahora}"
+    return (
+        f"{url}{separador}"
+        f"_nocache={ahora}"
+    )
 
 
 def get(url):
@@ -139,10 +150,16 @@ def valid(item):
     return (
         isinstance(item, dict)
         and bool(item.get("titulo"))
-        and isinstance(item.get("parrafos"), list)
+        and isinstance(
+            item.get("parrafos"),
+            list,
+        )
         and any(
             clean(x)
-            for x in item.get("parrafos", [])
+            for x in item.get(
+                "parrafos",
+                [],
+            )
         )
     )
 
@@ -153,7 +170,8 @@ def es_extracto_relacionado(texto):
     return (
         len(texto_low) < 250
         and re.search(
-            r"(\.\.\.|…)\s*(?:leer m[aá]s|read more|\])?\s*$",
+            r"(\.\.\.|…)\s*"
+            r"(?:leer m[aá]s|read more|\])?\s*$",
             texto_low,
         )
     )
@@ -294,10 +312,17 @@ def scrape_encontacto():
             if not texto:
                 continue
 
-            if texto.lower() in {
+            low = texto.lower()
+
+            if low in {
                 "opciones de lectura",
                 "otros devocionales",
             }:
+                continue
+
+            if low.startswith(
+                "opciones de lectura"
+            ):
                 continue
 
             title = texto
@@ -328,7 +353,11 @@ def scrape_encontacto():
             title_tag = h
             break
 
-        subtitle = ""
+    # ======================================================
+    # SUBTÍTULO
+    # ======================================================
+
+    subtitle = ""
 
     if title_tag:
         for element in title_tag.find_all_next(
@@ -351,11 +380,34 @@ def scrape_encontacto():
                 continue
 
             # No aceptar elementos de interfaz.
-            if low in {
-                "opciones de lectura",
-                "otros devocionales",
-                "meditación diaria",
-            }:
+            if (
+                low == "opciones de lectura"
+                or low.startswith(
+                    "opciones de lectura"
+                )
+            ):
+                continue
+
+            # No aceptar otros encabezados de navegación.
+            if (
+                low == "otros devocionales"
+                or low.startswith(
+                    "otros devocionales"
+                )
+            ):
+                continue
+
+            # No aceptar "Meditación diaria".
+            if low == "meditación diaria":
+                continue
+
+            # No aceptar textos formados únicamente
+            # por letras de los controles A A A.
+            if re.fullmatch(
+                r"[a\s]+",
+                texto,
+                re.I,
+            ):
                 continue
 
             # No aceptar fechas.
@@ -367,8 +419,8 @@ def scrape_encontacto():
             ):
                 continue
 
-            # El subtítulo correcto es el texto descriptivo
-            # que aparece inmediatamente después del título.
+            # El subtítulo debe ser un texto descriptivo
+            # suficientemente largo.
             if (
                 40 <= len(texto) <= 300
                 and re.search(
@@ -379,6 +431,10 @@ def scrape_encontacto():
             ):
                 subtitle = texto
                 break
+
+    # ======================================================
+    # VERSÍCULO
+    # ======================================================
 
     verse = ""
 
@@ -402,6 +458,10 @@ def scrape_encontacto():
                 if verse:
                     break
 
+    # ======================================================
+    # AUDIO
+    # ======================================================
+
     audio = ""
 
     m_audio = re.search(
@@ -415,8 +475,15 @@ def scrape_encontacto():
     if m_audio:
         audio = (
             m_audio.group(1)
-            .replace("\\/", "/")
+            .replace(
+                "\\/",
+                "/",
+            )
         )
+
+    # ======================================================
+    # PÁRRAFOS
+    # ======================================================
 
     paragraphs = []
 
@@ -703,9 +770,10 @@ def encontrar_titulo_bayless(
     )
 
 
-
 def scrape_bayless():
-    listado_url = "https://www.respuestasbc.com/devotional/"
+    listado_url = (
+        "https://www.respuestasbc.com/devotional/"
+    )
 
     # ======================================================
     # 1. OBTENER EL LISTADO
@@ -720,9 +788,15 @@ def scrape_bayless():
 
     candidatos = []
 
-    for a in listado.find_all("a", href=True):
+    for a in listado.find_all(
+        "a",
+        href=True,
+    ):
 
-        href = a.get("href", "").strip()
+        href = a.get(
+            "href",
+            "",
+        ).strip()
 
         if not href:
             continue
@@ -731,7 +805,10 @@ def scrape_bayless():
             continue
 
         texto = clean(
-            a.get_text(" ", strip=True)
+            a.get_text(
+                " ",
+                strip=True,
+            )
         )
 
         numero = -1
@@ -744,7 +821,9 @@ def scrape_bayless():
         )
 
         if m:
-            numero = int(m.group(1))
+            numero = int(
+                m.group(1)
+            )
 
         # Número en la URL: /devotional/246-
         if numero < 0:
@@ -756,23 +835,28 @@ def scrape_bayless():
             )
 
             if m:
-                numero = int(m.group(1))
+                numero = int(
+                    m.group(1)
+                )
 
         if numero < 0:
             continue
 
-        candidatos.append({
-            "numero": numero,
-            "url": urljoin(
-                r_listado.url,
-                href
-            ),
-            "texto": texto
-        })
+        candidatos.append(
+            {
+                "numero": numero,
+                "url": urljoin(
+                    r_listado.url,
+                    href
+                ),
+                "texto": texto
+            }
+        )
 
     if not candidatos:
         raise RuntimeError(
-            "No se encontraron episodios numerados de Bayless"
+            "No se encontraron episodios "
+            "numerados de Bayless"
         )
 
     # El episodio más reciente es el número mayor.
@@ -787,7 +871,8 @@ def scrape_bayless():
     numero_actual = candidato["numero"]
 
     print(
-        f"Bayless seleccionado: #{numero_actual} -> {articulo_url}"
+        f"Bayless seleccionado: "
+        f"#{numero_actual} -> {articulo_url}"
     )
 
     # ======================================================
@@ -808,10 +893,15 @@ def scrape_bayless():
     title = ""
     title_tag = None
 
-    for h in s.find_all(["h1", "h2", "h3"]):
+    for h in s.find_all(
+        ["h1", "h2", "h3"]
+    ):
 
         texto = clean(
-            h.get_text(" ", strip=True)
+            h.get_text(
+                " ",
+                strip=True
+            )
         )
 
         if not texto:
@@ -834,7 +924,8 @@ def scrape_bayless():
 
             title = clean(
                 re.sub(
-                    r"^\s*#?\s*\d+\s*[-–—:.]?\s*",
+                    r"^\s*#?\s*\d+"
+                    r"\s*[-–—:.]?\s*",
                     "",
                     texto
                 )
@@ -846,10 +937,15 @@ def scrape_bayless():
     # Respaldo.
     if not title:
 
-        for h in s.find_all(["h1", "h2", "h3"]):
+        for h in s.find_all(
+            ["h1", "h2", "h3"]
+        ):
 
             texto = clean(
-                h.get_text(" ", strip=True)
+                h.get_text(
+                    " ",
+                    strip=True
+                )
             )
 
             if not texto:
@@ -863,7 +959,8 @@ def scrape_bayless():
 
             title = clean(
                 re.sub(
-                    r"^\s*#?\s*\d+\s*[-–—:.]?\s*",
+                    r"^\s*#?\s*\d+"
+                    r"\s*[-–—:.]?\s*",
                     "",
                     texto
                 )
@@ -874,7 +971,8 @@ def scrape_bayless():
 
     if not title:
         raise RuntimeError(
-            "No se encontró el título del devocional de Bayless"
+            "No se encontró el título "
+            "del devocional de Bayless"
         )
 
     print(
@@ -886,7 +984,10 @@ def scrape_bayless():
     # ======================================================
 
     texto_total = clean(
-        s.get_text(" ", strip=True)
+        s.get_text(
+            " ",
+            strip=True
+        )
     )
 
     if not re.search(
@@ -913,7 +1014,6 @@ def scrape_bayless():
 
     contenedor = None
 
-    # Primero buscamos contenedores habituales de WordPress.
     selectores = [
         "article",
         ".entry-content",
@@ -929,7 +1029,9 @@ def scrape_bayless():
 
     for selector in selectores:
 
-        encontrado = s.select_one(selector)
+        encontrado = s.select_one(
+            selector
+        )
 
         if not encontrado:
             continue
@@ -941,15 +1043,11 @@ def scrape_bayless():
             )
         )
 
-        # Nos quedamos con un contenedor que realmente
-        # tenga una cantidad importante de texto.
         if len(texto_encontrado) > 300:
 
             contenedor = encontrado
             break
 
-    # Si no encontramos un contenedor claro,
-    # usamos el documento completo.
     if contenedor is None:
         contenedor = s
 
@@ -959,17 +1057,12 @@ def scrape_bayless():
 
     paragraphs = []
 
-    # ------------------------------------------------------
-    # Primero intentamos extraer elementos de texto
-    # ------------------------------------------------------
-
     elementos = contenedor.find_all(
         ["p", "blockquote", "li"]
     )
 
     for element in elementos:
 
-        # No tomar navegación/footer/sidebar.
         if element.find_parent(
             [
                 "nav",
@@ -991,10 +1084,11 @@ def scrape_bayless():
 
         low = texto.lower()
 
-        # Inicio del área que ya no pertenece al devocional.
         if (
-            "escuche este devocional" in low
-            or "escucha este devocional" in low
+            "escuche este devocional"
+            in low
+            or "escucha este devocional"
+            in low
         ):
             break
 
@@ -1030,9 +1124,6 @@ def scrape_bayless():
 
     # ======================================================
     # 7. RESPALDO IMPORTANTE
-    #
-    # Si el sitio no usa <p>, tomamos el texto plano
-    # del contenedor.
     # ======================================================
 
     if not paragraphs:
@@ -1061,7 +1152,6 @@ def scrape_bayless():
 
             low = linea.lower()
 
-            # Empezamos después del título.
             if title.lower() in low:
                 iniciar = True
                 continue
@@ -1069,10 +1159,11 @@ def scrape_bayless():
             if not iniciar:
                 continue
 
-            # Final del artículo.
             if (
-                "escuche este devocional" in low
-                or "escucha este devocional" in low
+                "escuche este devocional"
+                in low
+                or "escucha este devocional"
+                in low
             ):
                 break
 
@@ -1101,9 +1192,7 @@ def scrape_bayless():
             )
 
     # ======================================================
-    # 8. ÚLTIMO RESPALDO:
-    #    BUSCAR TEXTO ENTRE EL TÍTULO Y
-    #    "ESCUCHE ESTE DEVOCIONAL"
+    # 8. ÚLTIMO RESPALDO
     # ======================================================
 
     if not paragraphs:
@@ -1124,8 +1213,8 @@ def scrape_bayless():
         for i, linea in enumerate(lineas):
 
             if (
-                title.lower() in
-                linea.lower()
+                title.lower()
+                in linea.lower()
             ):
                 indice_titulo = i
                 break
@@ -1173,11 +1262,13 @@ def scrape_bayless():
     if not paragraphs:
 
         raise RuntimeError(
-            "No se encontró el texto del devocional actual de Bayless"
+            "No se encontró el texto del "
+            "devocional actual de Bayless"
         )
 
     print(
-        f"Bayless párrafos encontrados: {len(paragraphs)}"
+        f"Bayless párrafos encontrados: "
+        f"{len(paragraphs)}"
     )
 
     # ======================================================
@@ -1227,7 +1318,8 @@ def scrape_bayless():
                 if (
                     "soundcloud.com/respuestasbc/"
                     in valor.lower()
-                    and "/sets/" not in valor.lower()
+                    and "/sets/"
+                    not in valor.lower()
                 ):
 
                     audio = valor
@@ -1240,8 +1332,13 @@ def scrape_bayless():
     if not audio:
 
         patrones_audio = [
-            r"https?://(?:www\.)?soundcloud\.com/respuestasbc/[A-Za-z0-9_-]+",
-            r"https:\\/\\/(?:www\\.)?soundcloud\.com\\/respuestasbc\\/[A-Za-z0-9_-]+",
+            r"https?://(?:www\.)?"
+            r"soundcloud\.com/respuestasbc/"
+            r"[A-Za-z0-9_-]+",
+
+            r"https:\\/\\/(?:www\.)?"
+            r"soundcloud\.com\\/respuestasbc\\/"
+            r"[A-Za-z0-9_-]+",
         ]
 
         for patron in patrones_audio:
@@ -1288,6 +1385,8 @@ def scrape_bayless():
         "audio_tipo": "soundcloud",
         "link": clean_url(r.url),
     }
+
+
 # ==========================================================
 # KENNETH COPELAND
 # ==========================================================
