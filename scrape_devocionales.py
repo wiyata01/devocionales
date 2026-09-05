@@ -328,11 +328,11 @@ def scrape_encontacto():
             title_tag = h
             break
 
-    subtitle = ""
+        subtitle = ""
 
     if title_tag:
         for element in title_tag.find_all_next(
-            ["p", "div", "h3"]
+            ["h2", "p"]
         ):
             texto = clean(
                 element.get_text(
@@ -344,15 +344,21 @@ def scrape_encontacto():
             if not texto:
                 continue
 
+            low = texto.lower()
+
+            # No aceptar el propio título.
             if texto == title:
                 continue
 
-            if re.search(
-                r"^[A\s]+$",
-                texto,
-            ):
+            # No aceptar elementos de interfaz.
+            if low in {
+                "opciones de lectura",
+                "otros devocionales",
+                "meditación diaria",
+            }:
                 continue
 
+            # No aceptar fechas.
             if re.search(
                 r"\d{1,2}\s+de\s+[a-záéíóú]+"
                 r"\s+de\s+\d{4}",
@@ -361,11 +367,14 @@ def scrape_encontacto():
             ):
                 continue
 
+            # El subtítulo correcto es el texto descriptivo
+            # que aparece inmediatamente después del título.
             if (
-                20 <= len(texto) <= 300
+                40 <= len(texto) <= 300
                 and re.search(
                     r"[a-záéíóú]",
                     texto,
+                    re.I,
                 )
             ):
                 subtitle = texto
