@@ -8,10 +8,6 @@
 
 <style>
 
-/* =========================================================
-   CONFIGURACIÓN GENERAL
-   ========================================================= */
-
 * {
   box-sizing: border-box;
 }
@@ -33,7 +29,6 @@ body {
   margin: 0 auto;
   padding: 25px 0 45px;
 }
-
 
 /* =========================================================
    ENCABEZADO
@@ -57,6 +52,13 @@ body {
   margin: 0 0 30px;
 }
 
+.updated-note {
+  text-align: center;
+  color: #999;
+  font-size: 12px;
+  margin-top: -6px;
+  margin-bottom: 20px;
+}
 
 /* =========================================================
    TARJETAS DE DEVOCIONALES
@@ -106,11 +108,8 @@ body {
   margin: 0 0 18px;
 }
 
-.text strong {
-  font-weight: 700;
-}
-
-.loading-msg, .error-msg {
+.loading-msg,
+.error-msg {
   text-align: center;
   padding: 20px;
   color: #888;
@@ -120,7 +119,6 @@ body {
 .error-msg {
   color: #a33;
 }
-
 
 /* =========================================================
    REPRODUCTORES DE AUDIO
@@ -152,6 +150,7 @@ body {
   border: 0;
   border-radius: 10px;
   margin: 10px auto 0;
+  min-height: 166px;
 }
 
 .audio-note {
@@ -159,7 +158,6 @@ body {
   color: #666;
   margin-top: 9px;
 }
-
 
 /* =========================================================
    BOTONES / ENLACES
@@ -184,7 +182,6 @@ body {
 .actions a:hover {
   background: #555555;
 }
-
 
 /* =========================================================
    COMPARTIR DEVOCIONAL
@@ -219,7 +216,6 @@ body {
   transform: scale(.97);
 }
 
-
 /* =========================================================
    RADIO CRISTIANA
    ========================================================= */
@@ -239,11 +235,6 @@ body {
   padding: 22px;
   color: #ffffff;
 }
-
-
-/* =========================================================
-   SELECTOR DE RADIO
-   ========================================================= */
 
 .radio-select-wrap {
   position: relative;
@@ -273,32 +264,20 @@ body {
   right: 12px;
   top: 50%;
   transform: translateY(-50%);
-
   width: 44px;
   height: 44px;
-
   display: flex;
   align-items: center;
   justify-content: center;
-
   border-radius: 50%;
   border: 3px solid #222222;
-
   background: #ffffff;
   color: #222222;
-
   font-size: 19px;
   font-weight: 900;
-
   pointer-events: none;
-
   box-shadow: 0 2px 6px rgba(0,0,0,.25);
 }
-
-
-/* =========================================================
-   NOMBRE DE LA EMISORA
-   ========================================================= */
 
 .station-name {
   text-align: center;
@@ -308,20 +287,107 @@ body {
   color: #ffffff;
 }
 
-
-/* =========================================================
-   REPRODUCTOR DE RADIO
-   ========================================================= */
-
 #radioPlayer {
   display: block;
   width: 100%;
   margin-top: 10px;
 }
 
+/* =========================================================
+   TARJETA FINAL PARA MUJERES
+   ========================================================= */
+
+.women-devotional-card {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(145deg, #fffafc 0%, #fff1f6 100%);
+  border: 1px solid #f1d9e3;
+  padding: 16px;
+}
+
+.women-devotional-card::before {
+  content: "✿";
+  position: absolute;
+  top: 7px;
+  left: 14px;
+  font-size: 25px;
+  color: #d8a7bb;
+  opacity: .75;
+}
+
+.women-devotional-card::after {
+  content: "✿";
+  position: absolute;
+  bottom: 6px;
+  right: 15px;
+  font-size: 24px;
+  color: #d8a7bb;
+  opacity: .7;
+  transform: rotate(18deg);
+}
+
+.women-card-inner {
+  max-width: 760px;
+  margin: 0 auto;
+  text-align: center;
+  padding: 22px 16px 17px;
+  border: 1px solid #eed5df;
+  border-radius: 19px;
+  background: rgba(255,255,255,.78);
+}
+
+.women-card-label {
+  display: inline-block;
+  padding: 6px 13px;
+  border-radius: 999px;
+  background: #f6dce7;
+  color: #8f5e73;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .2px;
+  margin-bottom: 9px;
+}
+
+.women-card-date {
+  color: #9a7d89;
+  font-size: 12px;
+  margin-bottom: 13px;
+}
+
+.women-card-text {
+  margin: 0 auto;
+  max-width: 670px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(20px, 4.8vw, 29px);
+  line-height: 1.38;
+  font-weight: 700;
+  color: #5e4250;
+}
+
+.women-card-refs {
+  margin-top: 13px;
+  color: #9a7d89;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.women-card-footer {
+  margin-top: 12px;
+  color: #a77d8f;
+  font-size: 13px;
+}
+
+.women-share {
+  margin-top: 15px;
+  background: #9b637b;
+}
+
+.women-share:hover {
+  background: #7f4e64;
+}
 
 /* =========================================================
-   PIE DE PÁGINA
+   PIE
    ========================================================= */
 
 footer {
@@ -330,19 +396,6 @@ footer {
   font-size: 13px;
   padding: 10px 20px 30px;
 }
-
-.updated-note {
-  text-align: center;
-  color: #999;
-  font-size: 12px;
-  margin-top: -6px;
-  margin-bottom: 20px;
-}
-
-
-/* =========================================================
-   AJUSTES PARA TELÉFONOS
-   ========================================================= */
 
 @media (max-width: 600px) {
 
@@ -375,20 +428,28 @@ footer {
     font-size: 22px;
   }
 
+  .women-devotional-card {
+    padding: 11px;
+    border-radius: 19px;
+  }
+
+  .women-card-inner {
+    padding: 19px 12px 16px;
+    border-radius: 16px;
+  }
+
+  .women-card-text {
+    font-size: 21px;
+    line-height: 1.38;
+  }
 }
 
 </style>
 </head>
 
-
 <body>
 
 <div class="container">
-
-
-<!-- =========================================================
-     ENCABEZADO
-     ========================================================= -->
 
 <div class="main-title">
   Devocionales<br>
@@ -401,44 +462,22 @@ footer {
 
 <div class="updated-note" id="updatedNote"></div>
 
-
-<!-- =========================================================
-     EN CONTACTO
-     ========================================================= -->
-
 <section class="card" id="card-encontacto">
   <h2>En Contacto</h2>
   <div class="loading-msg">Cargando devocional de hoy…</div>
 </section>
-
-
-<!-- =========================================================
-     BAYLESS CONLEY
-     ========================================================= -->
 
 <section class="card" id="card-bayless">
   <h2>Bayless Conley</h2>
   <div class="loading-msg">Cargando devocional de hoy…</div>
 </section>
 
-
-<!-- =========================================================
-     KENNETH COPELAND
-     ========================================================= -->
-
 <section class="card" id="card-kenneth">
   <h2>Kenneth Copeland</h2>
   <div class="loading-msg">Cargando devocional de hoy…</div>
 </section>
 
-
-
-<!-- =========================================================
-     RADIO CRISTIANA
-     ========================================================= -->
-
 <section class="card">
-
   <div class="radio-title">
     Radio Cristiana
   </div>
@@ -446,7 +485,6 @@ footer {
   <div class="radio-box">
 
     <div class="radio-select-wrap">
-
       <select id="radioSelect">
 
         <option value="" selected disabled>
@@ -514,7 +552,6 @@ footer {
         </option>
 
       </select>
-
     </div>
 
     <div class="station-name" id="stationName">
@@ -524,36 +561,59 @@ footer {
     <audio id="radioPlayer" controls preload="none"></audio>
 
   </div>
+</section>
+
+<!-- =========================================================
+     TARJETA DIARIA PARA MUJERES
+     ========================================================= -->
+
+<section class="card women-devotional-card" id="womenDevotionalCard">
+
+  <div class="women-card-inner">
+
+    <div class="women-card-label">
+      Para ti, mujer 🌷
+    </div>
+
+    <div class="women-card-date" id="womenCardDate"></div>
+
+    <div class="women-card-text" id="womenCardText">
+      Cargando tu mensaje de hoy…
+    </div>
+
+    <div class="women-card-refs" id="womenCardRefs"></div>
+
+    <div class="women-card-footer">
+      Un pequeño recordatorio para tu corazón.
+    </div>
+
+    <button
+      class="share-button women-share"
+      id="shareWomenCard"
+      type="button"
+    >
+      ↗ Compartir tarjeta
+    </button>
+
+  </div>
 
 </section>
 
-
 </div>
-
-
-<!-- =========================================================
-     PIE
-     ========================================================= -->
 
 <footer>
   Devocionales diarios y Radio Cristiana
 </footer>
 
-
-
-<!-- =========================================================
-     JAVASCRIPT
-     ========================================================= -->
-
 <script>
 
-/* ---------------------------------------------------------
+/* =========================================================
    1) RADIO
-  --------------------------------------------------------- */
+   ========================================================= */
 
 const radioSelect = document.getElementById("radioSelect");
-const radioPlayer  = document.getElementById("radioPlayer");
-const stationName  = document.getElementById("stationName");
+const radioPlayer = document.getElementById("radioPlayer");
+const stationName = document.getElementById("stationName");
 
 radioSelect.addEventListener("change", function () {
 
@@ -577,21 +637,26 @@ radioSelect.addEventListener("change", function () {
 
 });
 
-
-/* ---------------------------------------------------------
-   2) DEVOCIONALES
-  --------------------------------------------------------- */
+/* =========================================================
+   2) UTILIDADES
+   ========================================================= */
 
 function escapeHtml(str) {
 
   const div = document.createElement("div");
-
   div.textContent = str || "";
-
   return div.innerHTML;
 
 }
 
+function normalizarTexto(texto) {
+
+  return (texto || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+}
 
 function renderParrafos(parrafos, fuente) {
 
@@ -601,844 +666,696 @@ function renderParrafos(parrafos, fuente) {
 
   let filtrados = parrafos;
 
-  // Limpiar textos sobrantes que vienen de la página fuente
-  // de Bayless Conley.
   if (fuente === "bayless") {
 
-    filtrados = parrafos.filter(p => {
+    filtrados = parrafos.filter(function (p) {
 
-      const texto = (p || "")
-        .trim()
-        .toLowerCase();
+      const texto = normalizarTexto(p).trim();
 
       return (
         !texto.includes("skip to main content") &&
-        !texto.includes("horario de transmisión") &&
+        !texto.includes("horario de transmision") &&
         !texto.includes("devocional diario") &&
-        !texto.includes("respuestas para cada día") &&
+        !texto.includes("respuestas para cada dia") &&
         !texto.includes("recibir devocionales diarios") &&
-
-        !texto.includes(
-          "salmos 127:1–2 dice: si dios no construye"
-        ) &&
-
-        !texto.includes(
-          "dios nos ha dado sus promesas porque las quiere cumplir"
-        ) &&
-
-        !texto.includes(
-          "cada uno de nosotros posee puntos fuertes que dios nos ha dado"
-        )
+        !texto.includes("salmos 127:1-2 dice: si dios no construye") &&
+        !texto.includes("dios nos ha dado sus promesas porque las quiere cumplir") &&
+        !texto.includes("cada uno de nosotros posee puntos fuertes que dios nos ha dado") &&
+        !texto.startsWith("today, ") &&
+        !/^#\d+\s/.test(texto)
       );
 
     });
+
   }
 
   return filtrados
-    .map(p => `<p>${escapeHtml(p)}</p>`)
+    .map(function (p) {
+      return `<p>${escapeHtml(p)}</p>`;
+    })
     .join("");
+
 }
-   
-   
-/* ---------------------------------------------------------
-   COMPARTIR DEVOCIONAL
-  --------------------------------------------------------- */
 
-function compartirDevocional(encodedDevo, fuente) {
+/* =========================================================
+   3) AUDIO
+   ========================================================= */
 
-  let devo;
+function renderAudio(item) {
 
-  try {
-
-    devo = JSON.parse(
-      decodeURIComponent(encodedDevo)
-    );
-
-  } catch (err) {
-
-    console.error(
-      "No se pudo preparar el devocional para compartir.",
-      err
-    );
-
-    return;
+  if (!item || !item.audio_url) {
+    return "";
   }
 
+  if (item.audio_tipo === "soundcloud") {
 
-  /* -------------------------------------------------------
-     ENLACES OFICIALES
-  ------------------------------------------------------- */
+    const encoded = encodeURIComponent(item.audio_url);
 
-  const enlaces = {
+    return `
+      <div class="audio-area">
+        <strong>Escuchar devocional</strong>
 
-    encontacto:
-      "https://www.encontactoglobal.org/lea/devocionales-diarios",
+        <iframe
+          class="audio-frame"
+          scrolling="no"
+          frameborder="no"
+          allow="autoplay"
+          src="https://w.soundcloud.com/player/?url=${encoded}&color=%232f2f2f&auto_play=false&hide_related=true&show_comments=false&show_user=false&show_reposts=false&visual=false">
+        </iframe>
 
-    bayless:
-      "https://www.respuestasbc.com/devotional/",
+        <div class="audio-note">
+          Audio de SoundCloud
+        </div>
+      </div>
+    `;
 
-    kenneth:
-      "https://main.kcmlatino.org/devotional"
+  }
 
-  };
+  return `
+    <div class="audio-area">
+      <strong>Escuchar devocional</strong>
 
+      <audio controls preload="metadata">
+        <source src="${escapeHtml(item.audio_url)}" type="audio/mpeg">
+        Tu navegador no puede reproducir este audio.
+      </audio>
 
-  /* -------------------------------------------------------
-     NOMBRE DE LA FUENTE
-  ------------------------------------------------------- */
+      <div class="audio-note">
+        Audio en MP3
+      </div>
+    </div>
+  `;
 
-  const fuentes = {
+}
 
-    encontacto: "En Contacto",
+/* =========================================================
+   4) COMPARTIR DEVOCIONAL
+   ========================================================= */
 
-    bayless: "Bayless Conley",
+function construirResumen(parrafos, limite) {
 
-    kenneth: "Kenneth Copeland"
+  const textoCompleto = (parrafos || [])
+    .filter(Boolean)
+    .join(" ");
 
-  };
-
-
-  const nombreFuente =
-    fuentes[fuente] || "Devocional diario";
-
-
-  const titulo =
-    (devo.titulo || "Devocional diario").trim();
-
-
-  const url =
-    enlaces[fuente] ||
-    devo.link ||
-    window.location.href;
-
-
-  /* -------------------------------------------------------
-     TEXTO ORIGINAL
-  ------------------------------------------------------- */
-
-  const parrafos = Array.isArray(devo.parrafos)
-    ? devo.parrafos
-        .map(p => (p || "").trim())
-        .filter(p => p.length > 20)
-    : [];
-
-
-  /*
-   * Convertimos los párrafos en oraciones.
-   * Esto permite construir un resumen sin utilizar
-   * servicios externos ni API.
-   */
-
-  const oraciones = [];
-
-
-  parrafos.forEach(parrafo => {
-
-    const partes = parrafo
-      .replace(/\s+/g, " ")
-      .split(/(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÑ¿¡])/);
-
-    partes.forEach(oracion => {
-
-      const texto = oracion.trim();
-
-      if (
-        texto.length >= 45 &&
-        texto.length <= 500
-      ) {
-
-        oraciones.push(texto);
-
-      }
-
+  const frases = textoCompleto
+    .split(/(?<=[.!?])\s+/)
+    .map(function (s) {
+      return s.trim();
+    })
+    .filter(function (s) {
+      return s.length >= 35;
     });
-
-  });
-
-
-  /* -------------------------------------------------------
-     PALABRAS IMPORTANTES PARA EL RESUMEN
-  ------------------------------------------------------- */
 
   const palabrasImportantes = [
-    "dios",
-    "señor",
-    "jesús",
-    "cristo",
-    "espíritu",
+    "Dios",
+    "Jesús",
     "fe",
-    "oración",
-    "promesa",
-    "palabra",
     "amor",
-    "vida",
-    "familia",
-    "corazón",
-    "esperanza",
-    "obediencia",
-    "bendición",
-    "propósito",
+    "oración",
     "confianza",
-    "victoria",
-    "salvación",
+    "promesa",
+    "esperar",
+    "corazón",
+    "vida",
+    "Palabra",
     "gracia",
-    "milagro",
-    "creer",
-    "confiar",
-    "orar",
-    "perdonar",
-    "servir"
+    "misericordia",
+    "propósito",
+    "obediencia"
   ];
 
+  const puntuadas = frases.map(function (frase, indice) {
 
-  /* -------------------------------------------------------
-     PUNTUAR CADA ORACIÓN
-  ------------------------------------------------------- */
+    const normal = normalizarTexto(frase);
 
-  const puntuadas = oraciones.map((texto, indice) => {
+    let score = 0;
 
-    const lower = texto.toLowerCase();
+    palabrasImportantes.forEach(function (palabra) {
 
-    let puntuacion = 0;
-
-
-    /*
-     * Las primeras oraciones suelen introducir
-     * la idea principal.
-     */
-
-    if (indice < 3) {
-      puntuacion += 3;
-    }
-
-
-    palabrasImportantes.forEach(palabra => {
-
-      if (
-        lower.includes(
-          palabra
-        )
-      ) {
-
-        puntuacion += 2;
-
+      if (normal.includes(normalizarTexto(palabra))) {
+        score += 2;
       }
 
     });
 
-
-    /*
-     * Las oraciones demasiado cortas suelen ser
-     * fragmentos de transición.
-     */
-
-    if (texto.length >= 80) {
-      puntuacion += 2;
+    if (indice < 3) {
+      score += 2;
     }
-
-
-    if (texto.length >= 140) {
-      puntuacion += 1;
-    }
-
-
-    /*
-     * Damos prioridad a afirmaciones completas.
-     */
-
-    if (
-      lower.includes("dios") ||
-      lower.includes("jesús") ||
-      lower.includes("señor")
-    ) {
-
-      puntuacion += 3;
-
-    }
-
 
     return {
-      texto,
-      puntuacion,
-      indice
+      frase: frase,
+      score: score,
+      indice: indice
     };
 
   });
 
+  puntuadas.sort(function (a, b) {
 
-  /* -------------------------------------------------------
-     ORDENAR POR IMPORTANCIA
-  ------------------------------------------------------- */
-
-  puntuadas.sort(
-    (a, b) => {
-
-      if (
-        b.puntuacion !==
-        a.puntuacion
-      ) {
-
-        return (
-          b.puntuacion -
-          a.puntuacion
-        );
-
-      }
-
-      return (
-        a.indice -
-        b.indice
-      );
-
+    if (b.score !== a.score) {
+      return b.score - a.score;
     }
-  );
 
+    return a.indice - b.indice;
 
-  /* -------------------------------------------------------
-     CONSTRUIR RESUMEN
-  ------------------------------------------------------- */
+  });
 
   let resumen = "";
 
-  const utilizadas = [];
-
-
   for (const item of puntuadas) {
 
-    const candidato =
-      item.texto;
+    const candidato = resumen
+      ? resumen + " " + item.frase
+      : item.frase;
 
-
-    /*
-     * Evitar frases muy parecidas.
-     */
-
-    const repetida =
-      utilizadas.some(
-        anterior =>
-          anterior.includes(
-            candidato
-          ) ||
-          candidato.includes(
-            anterior
-          )
-      );
-
-
-    if (repetida) {
-      continue;
+    if (candidato.length <= limite) {
+      resumen = candidato;
     }
 
-
-    const nuevoResumen =
-      resumen
-        ? `${resumen} ${candidato}`
-        : candidato;
-
-
-    /*
-     * Dejamos espacio para:
-     *
-     * título
-     * fuente
-     * enlace
-     */
-
-    const encabezado =
-      `${titulo} — ${nombreFuente}\n\n`;
-
-    const finalTexto =
-      `\n\n📖 Lee el devocional completo:\n${url}`;
-
-
-    const limiteTexto =
-      700 -
-      encabezado.length -
-      finalTexto.length;
-
-
-    if (
-      nuevoResumen.length <=
-      limiteTexto
-    ) {
-
-      resumen =
-        nuevoResumen;
-
-      utilizadas.push(
-        candidato
-      );
-
-    }
-
-    if (
-      resumen.length >=
-      limiteTexto * 0.85
-    ) {
-
+    if (resumen.length >= limite - 80) {
       break;
-
     }
 
   }
 
+  return resumen;
 
-  /* -------------------------------------------------------
-     RESPALDO
-  ------------------------------------------------------- */
+}
 
-  if (!resumen) {
+async function compartirDevocional(encodedDevo, fuente) {
 
-    resumen =
-      parrafos.length
-        ? parrafos[0]
-        : "Lee el devocional completo en el enlace.";
+  let devo;
 
-  }
-
-
-  /* -------------------------------------------------------
-     RECORTE FINAL ABSOLUTO
-     ------------------------------------------------------- */
-
-  let textoCompartir =
-    `${titulo} — ${nombreFuente}\n\n` +
-    `${resumen}\n\n` +
-    `📖 Lee el devocional completo:\n${url}`;
-
-
-  /*
-   * Nunca permitimos superar 700 caracteres.
-   */
-
-  if (
-    textoCompartir.length >
-    700
-  ) {
-
-    const encabezado =
-      `${titulo} — ${nombreFuente}\n\n`;
-
-    const finalTexto =
-      `\n\n📖 Lee el devocional completo:\n${url}`;
-
-
-    const maxResumen =
-      700 -
-      encabezado.length -
-      finalTexto.length;
-
-
-    let resumenCorto =
-      resumen.substring(
-        0,
-        Math.max(
-          50,
-          maxResumen
-        )
-      );
-
-
-    /*
-     * No cortar a mitad de palabra.
-     */
-
-    resumenCorto =
-      resumenCorto.replace(
-        /\s+\S*$/,
-        ""
-      );
-
-
-    textoCompartir =
-      encabezado +
-      resumenCorto +
-      finalTexto;
-
-  }
-
-
-  /* -------------------------------------------------------
-     WEB SHARE
-  ------------------------------------------------------- */
-
-  if (navigator.share) {
-
-    navigator.share({
-
-      title:
-        `${titulo} — ${nombreFuente}`,
-
-      text:
-        textoCompartir
-
-    }).catch(function () {
-
-      /*
-       * El usuario canceló el menú.
-       */
-
-    });
-
+  try {
+    devo = JSON.parse(decodeURIComponent(encodedDevo));
+  } catch (error) {
     return;
   }
 
+  const titulo = devo.titulo || "Devocional diario";
+  const resumen = construirResumen(devo.parrafos, 430);
 
-  /* -------------------------------------------------------
-     COMPUTADOR
-  ------------------------------------------------------- */
+  const links = {
+    encontacto: "https://www.encontacto.org/lea/devocionales-diarios",
+    bayless: "https://www.respuestasbc.com/devotional/",
+    kenneth: "https://main.kcmlatino.org/devotional/"
+  };
 
-  if (
-    navigator.clipboard &&
-    window.isSecureContext
-  ) {
+  const texto = [
+    "📖 " + titulo,
+    "",
+    resumen,
+    "",
+    "Fuente: " + (links[fuente] || ""),
+    "",
+    "Devocionales Diarios"
+  ].join("\n");
 
-    navigator.clipboard
-      .writeText(
-        textoCompartir
-      )
+  const textoFinal = texto.slice(0, 700);
 
-      .then(function () {
+  if (navigator.share) {
 
-        alert(
-          "El resumen del devocional " +
-          "fue copiado al portapapeles."
-        );
-
-      })
-
-      .catch(function () {
-
-        window.prompt(
-          "Copia el resumen para WhatsApp:",
-          textoCompartir
-        );
-
+    try {
+      await navigator.share({
+        title: titulo,
+        text: textoFinal
       });
+
+      return;
+
+    } catch (error) {
+      /* El usuario puede cancelar la ventana de compartir. */
+    }
+
+  }
+
+  try {
+
+    await navigator.clipboard.writeText(textoFinal);
+    alert("El contenido fue copiado para compartir.");
+
+  } catch (error) {
+
+    prompt("Copia este texto para compartir:", textoFinal);
+
+  }
+
+}
+
+/* =========================================================
+   5) TARJETA FINAL PARA MUJERES
+   ========================================================= */
+
+const womenCardDate = document.getElementById("womenCardDate");
+const womenCardText = document.getElementById("womenCardText");
+const womenCardRefs = document.getElementById("womenCardRefs");
+const shareWomenCard = document.getElementById("shareWomenCard");
+
+let textoTarjetaHoy = "";
+
+function contarPalabras(texto) {
+
+  return texto
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .length;
+
+}
+
+function extraerReferenciaBayless(item) {
+
+  if (item && item.versiculo) {
+    return item.versiculo;
+  }
+
+  const parrafos = (item && item.parrafos) || [];
+
+  const texto = parrafos.join(" ");
+
+  const coincidencia = texto.match(
+    /\b(?:Marcos|Mateo|Lucas|Juan|Salmos?|Proverbios|Romanos|Hebreos|Isa[ií]as|G[eé]nesis|Hechos|Santiago|1\s+Corintios|2\s+Corintios|1\s+Pedro|2\s+Pedro|1\s+Juan|2\s+Juan|3\s+Juan)\s+\d+:\d+(?:[-–]\d+)?/i
+  );
+
+  return coincidencia ? coincidencia[0] : "";
+}
+
+function limpiarReferencia(texto) {
+
+  return (texto || "")
+    .replace(/Bible Reading:/gi, "")
+    .trim();
+
+}
+
+function obtenerTemasParaTarjeta(data) {
+
+  const fuentes = [
+    data && data.encontacto,
+    data && data.bayless,
+    data && data.kenneth
+  ];
+
+  const acumulado = fuentes.map(function (item) {
+
+    if (!item) {
+      return "";
+    }
+
+    const ref = item === (data && data.bayless)
+      ? extraerReferenciaBayless(item)
+      : (item.versiculo || "");
+
+    return [
+      item.titulo || "",
+      ref || ""
+    ].join(" ");
+
+  }).join(" ");
+
+  const t = normalizarTexto(acumulado);
+
+  const temas = [];
+
+  const grupos = [
+    {
+      claves: ["todavia no", "esperar", "tiempo", "paciencia", "espera", "genesis 16"],
+      texto: "espera"
+    },
+    {
+      claves: ["corazon", "tesoro", "dar", "ofrenda", "marcos 12"],
+      texto: "corazon"
+    },
+    {
+      claves: ["glorifique", "glorificar", "palabra", "hechos 17"],
+      texto: "palabra"
+    },
+    {
+      claves: ["fe", "confi", "promesa"],
+      texto: "fe"
+    }
+  ];
+
+  grupos.forEach(function (grupo) {
+
+    if (grupo.claves.some(function (clave) {
+      return t.includes(clave);
+    })) {
+      temas.push(grupo.texto);
+    }
+
+  });
+
+  return temas;
+
+}
+
+function generarTarjetaMujer(data) {
+
+  const temas = obtenerTemasParaTarjeta(data);
+
+  const fecha = (data && data.fecha) || "";
+
+  const refEn = data && data.encontacto
+    ? limpiarReferencia(data.encontacto.versiculo)
+    : "";
+
+  const refBa = extraerReferenciaBayless(data && data.bayless);
+  const refKe = data && data.kenneth
+    ? limpiarReferencia(data.kenneth.versiculo)
+    : "";
+
+  let mensaje;
+
+  /*
+    La tarjeta es 100% determinista:
+    utiliza títulos y referencias bíblicas que llegan en data.json,
+    sin inteligencia artificial.
+  */
+
+  const firmas = [
+    "espera",
+    "corazon",
+    "palabra",
+    "fe"
+  ];
+
+  const indice = new Date().getDate() % firmas.length;
+  const temaPrincipal = firmas[indice];
+
+  if (temas.includes("espera") && temas.includes("fe")) {
+
+    mensaje =
+      "Mujer, espera en Dios con fe; Él cuida tu corazón y prepara cada paso en el tiempo perfecto.";
+
+  } else if (temas.includes("corazon") && temas.includes("palabra")) {
+
+    mensaje =
+      "Mujer, guarda tu corazón y recibe Su Palabra con fe; Dios puede usar tu vida para Su gloria.";
+
+  } else if (temas.includes("corazon")) {
+
+    mensaje =
+      "Mujer, cuida tu corazón y entrégaselo a Dios; deja que tu fe ordene cada decisión de hoy.";
+
+  } else if (temas.includes("palabra")) {
+
+    mensaje =
+      "Mujer, recibe la Palabra con fe y deja que Dios fortalezca tu corazón para caminar con propósito.";
+
+  } else if (temaPrincipal === "espera") {
+
+    mensaje =
+      "Mujer, no te apresures; confía en Dios, espera con fe y deja que Él dirija cada puerta de tu camino.";
+
+  } else if (temaPrincipal === "corazon") {
+
+    mensaje =
+      "Mujer, guarda tu corazón delante de Dios; tu fe puede transformar la manera en que enfrentas este día.";
+
+  } else if (temaPrincipal === "palabra") {
+
+    mensaje =
+      "Mujer, abraza la Palabra de Dios y camina con fe; Él sigue obrando aun cuando todavía no veas todo.";
 
   } else {
 
-    window.prompt(
-      "Copia el resumen para WhatsApp:",
-      textoCompartir
+    mensaje =
+      "Mujer, confía en Dios hoy; su Palabra fortalece tu corazón y te guía con amor en cada paso.";
+
+  }
+
+  /*
+    Mantener el objetivo de unas 15–20 palabras.
+    Si una plantilla queda fuera del rango, se recorta de manera segura.
+  */
+
+  if (contarPalabras(mensaje) > 20) {
+
+    const palabras = mensaje.split(/\s+/).filter(Boolean);
+
+    mensaje = palabras.slice(0, 20).join(" ");
+
+    if (!/[.!?]$/.test(mensaje)) {
+      mensaje += ".";
+    }
+
+  }
+
+  womenCardDate.textContent = fecha
+    ? "Inspirada en los devocionales de hoy · " + fecha
+    : "Inspirada en los devocionales de hoy";
+
+  womenCardText.textContent = mensaje;
+
+  const referencias = [];
+
+  if (refEn) {
+    referencias.push("En Contacto: " + refEn);
+  }
+
+  if (refBa) {
+    referencias.push("Bayless: " + refBa);
+  }
+
+  if (refKe) {
+    referencias.push("Kenneth: " + refKe);
+  }
+
+  womenCardRefs.textContent = referencias.join(" · ");
+
+  textoTarjetaHoy =
+    "🌷 Para ti, mujer\n\n" +
+    mensaje +
+    (referencias.length
+      ? "\n\n" + referencias.join(" · ")
+      : "") +
+    "\n\nDevocionales Diarios";
+
+}
+
+shareWomenCard.addEventListener("click", async function () {
+
+  if (!textoTarjetaHoy) {
+    return;
+  }
+
+  if (navigator.share) {
+
+    try {
+
+      await navigator.share({
+        title: "Para ti, mujer 🌷",
+        text: textoTarjetaHoy
+      });
+
+      return;
+
+    } catch (error) {
+      /* El usuario puede cancelar. */
+    }
+
+  }
+
+  try {
+
+    await navigator.clipboard.writeText(textoTarjetaHoy);
+    alert("La tarjeta fue copiada para compartir.");
+
+  } catch (error) {
+
+    prompt(
+      "Copia este texto para compartir:",
+      textoTarjetaHoy
     );
 
   }
 
-}
+});
 
-/* ---------------------------------------------------------
-   3) REPRODUCTORES DE AUDIO
-  --------------------------------------------------------- */
+/* =========================================================
+   6) RENDER DE UNA TARJETA
+   ========================================================= */
 
+function renderCard(id, nombre, item, fuente, fecha) {
 
-function renderAudio(devo) {
+  const card = document.getElementById(id);
 
-  // Busca en varias opciones por si el JSON usa otro nombre de propiedad
-  const audioUrl = devo.audio_url || devo.audio || devo.url_audio;
+  if (!item) {
 
-  if (!audioUrl) {
-
-    return `
-      <div class="audio-note">
-        Audio no disponible hoy.
-      </div>
-    `;
-
-  }
-
-
-  /* -------------------------------------------------------
-     SOUNDCLOUD
-     ------------------------------------------------------- */
-
-  if (devo.audio_tipo === "soundcloud") {
-
-    const embedSrc =
-      "https://w.soundcloud.com/player/?url=" +
-      encodeURIComponent(audioUrl) +
-      "&auto_play=false" +
-      "&hide_related=true" +
-      "&show_comments=false" +
-      "&show_user=true" +
-      "&show_reposts=false" +
-      "&visual=false";
-
-
-    return `
-
-      <div class="audio-area">
-
-        <strong>
-          🎧 Audio del devocional
-        </strong>
-
-        <iframe
-          class="audio-frame"
-          src="${embedSrc}"
-          height="166"
-          scrolling="no"
-          allow="autoplay">
-        </iframe>
-
-        <div class="audio-note">
-          Audio oficial de SoundCloud
-        </div>
-
-      </div>
-
-    `;
-
-  }
-
-
-  /* -------------------------------------------------------
-     MP3 DIRECTO
-     ------------------------------------------------------- */
-
-  return `
-
-    <div class="audio-area">
-
-      <strong>
-        🎧 Audio del devocional
-      </strong>
-
-      <audio
-        controls
-        preload="none"
-        src="${escapeHtml(audioUrl)}">
-      </audio>
-
-      <div class="audio-note">
-        Audio del devocional
-      </div>
-
-    </div>
-
-  `;
-
-}
-
-
-/* ---------------------------------------------------------
-   4) MOSTRAR CADA DEVOCIONAL
-  --------------------------------------------------------- */
-
-function renderCard(
-  containerId,
-  headerLabel,
-  devo,
-  fecha,
-  fuente
-) {
-
-  const section =
-    document.getElementById(containerId);
-
-  if (!devo) {
-    section.innerHTML = `
-      <h2>${headerLabel}</h2>
+    card.innerHTML = `
+      <h2>${escapeHtml(nombre)}</h2>
       <div class="error-msg">
-        No se pudo cargar el devocional de hoy desde la fuente original.
+        No hay datos disponibles para hoy.
       </div>
     `;
+
     return;
+
   }
 
-  section.innerHTML = `
+  const titulo = item.titulo || "";
+  const subtitulo = item.subtitulo || "";
+  const versiculo = item.versiculo || "";
 
-    <h2>
-      ${headerLabel}
-    </h2>
+  const encoded = encodeURIComponent(
+    JSON.stringify(item)
+  );
+
+  card.innerHTML = `
+    <h2>${escapeHtml(nombre)}</h2>
 
     <div class="date">
-      ${escapeHtml(fecha)}
+      ${escapeHtml(fecha || "")}
     </div>
 
     ${
-      devo.titulo
-        ? `
-          <div class="dev-title">
-            ${escapeHtml(devo.titulo)}
-          </div>
-        `
+      titulo
+        ? `<div class="dev-title">${escapeHtml(titulo)}</div>`
         : ""
     }
 
-   <!-- SUBTÍTULO FILTRADO -->
     ${
-      devo.subtitulo && !devo.subtitulo.includes("A A A") && !devo.subtitulo.includes("Opciones de lectura")
-        ? `
-          <div style="text-align: center; font-size: 18px; color: #555; margin: -10px 0 22px; font-style: italic; line-height: 1.4;">
-            ${escapeHtml(devo.subtitulo)}
-          </div>
-        `
+      subtitulo
+        ? `<div class="text"><p><strong>${escapeHtml(subtitulo)}</strong></p></div>`
+        : ""
+    }
+
+    ${
+      versiculo
+        ? `<div class="text"><p><strong>${escapeHtml(versiculo)}</strong></p></div>`
         : ""
     }
 
     <div class="text">
-      ${renderParrafos(devo.parrafos, fuente)}
+      ${renderParrafos(item.parrafos, fuente)}
     </div>
 
-    <!-- BOTÓN COMPARTIR -->
+    ${renderAudio(item)}
+
+    <div class="actions">
+      <a
+        href="${escapeHtml(item.link || "#")}"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        Ver fuente
+      </a>
+    </div>
+
     <div class="share-area">
       <button
         class="share-button"
         type="button"
-        onclick="compartirDevocional(
-          '${encodeURIComponent(JSON.stringify(devo))}',
-          '${fuente}'
-        )">
-        ↗ Compartir este devocional
+        onclick="compartirDevocional('${encoded}', '${fuente}')"
+      >
+        ↗ Compartir devocional
       </button>
     </div>
-
-    <!-- AUDIO -->
-    ${renderAudio(devo)}
-
-    <!-- ENLACE AL DEVOCIONAL ORIGINAL -->
-    <div class="actions">
-      <a
-        href="${escapeHtml(devo.link)}"
-        target="_blank"
-        rel="noopener">
-        Ver devocional completo
-      </a>
-    </div>
-
   `;
 
 }
 
-
-/* ---------------------------------------------------------
-   5) CARGAR DATA.JSON
-  --------------------------------------------------------- */
+/* =========================================================
+   7) CARGAR DATOS
+   ========================================================= */
 
 async function cargarDevocionales() {
 
+  const updatedNote = document.getElementById("updatedNote");
+
   try {
 
-    const resp =
-      await fetch(
-        "./data.json",
-        {
-          cache: "no-store"
-        }
-      );
+    /*
+      El parámetro t evita que el navegador conserve un data.json viejo.
+    */
 
+    const url = "./data.json?t=" + Date.now();
 
-    if (!resp.ok) {
+    const response = await fetch(url, {
+      cache: "no-store"
+    });
 
+    if (!response.ok) {
       throw new Error(
-        "data.json no encontrado (HTTP " +
-        resp.status +
-        ")"
+        "No se pudo cargar data.json: HTTP " + response.status
       );
-
     }
 
+    const data = await response.json();
 
-    const data =
-      await resp.json();
+    const fecha = data.fecha || "";
 
-
-    /* Mostrar fecha/hora de actualización */
-
-    document.getElementById(
-      "updatedNote"
-    ).textContent =
-
-      data.generado
-        ? "Actualizado: " +
-          new Date(
-            data.generado
-          ).toLocaleString("es")
-        : "";
-
-
-    /* -----------------------------------------------------
-       EN CONTACTO
-  ----------------------------------------------------- */
+    updatedNote.textContent = data.generado
+      ? "Actualizado: " + fecha
+      : fecha;
 
     renderCard(
       "card-encontacto",
       "En Contacto",
       data.encontacto,
-      data.fecha,
-      "encontacto"
+      "encontacto",
+      fecha
     );
-
-
-    /* -----------------------------------------------------
-       BAYLESS CONLEY
-  ----------------------------------------------------- */
 
     renderCard(
       "card-bayless",
       "Bayless Conley",
       data.bayless,
-      data.fecha,
-      "bayless"
+      "bayless",
+      fecha
     );
-
-
-    /* -----------------------------------------------------
-       KENNETH COPELAND
-  ----------------------------------------------------- */
 
     renderCard(
       "card-kenneth",
       "Kenneth Copeland",
       data.kenneth,
-      data.fecha,
-      "kenneth"
+      "kenneth",
+      fecha
     );
 
+    generarTarjetaMujer(data);
 
-  } catch (err) {
+  } catch (error) {
 
-    console.error(err);
+    console.error(error);
 
+    updatedNote.textContent = "";
 
-    [
-      "card-encontacto",
-      "card-bayless",
-      "card-kenneth"
-    ].forEach(function (id) {
+    document.getElementById("card-encontacto").innerHTML = `
+      <h2>En Contacto</h2>
+      <div class="error-msg">
+        No se pudo cargar el devocional de hoy.
+      </div>
+    `;
 
-      const section =
-        document.getElementById(id);
+    document.getElementById("card-bayless").innerHTML = `
+      <h2>Bayless Conley</h2>
+      <div class="error-msg">
+        No se pudo cargar el devocional de hoy.
+      </div>
+    `;
 
+    document.getElementById("card-kenneth").innerHTML = `
+      <h2>Kenneth Copeland</h2>
+      <div class="error-msg">
+        No se pudo cargar el devocional de hoy.
+      </div>
+    `;
 
-      section.innerHTML += `
+    womenCardText.textContent =
+      "Hoy Dios tiene una palabra para fortalecer tu corazón.";
 
-        <div class="error-msg">
-
-          No se pudo cargar el contenido de hoy.
-
-          (${escapeHtml(err.message)})
-
-        </div>
-
-      `;
-
-    });
+    womenCardRefs.textContent = "";
 
   }
 
 }
 
-
-/* ---------------------------------------------------------
-   6) INICIAR
-  --------------------------------------------------------- */
-
 cargarDevocionales();
 
 </script>
-
 
 </body>
 </html>
