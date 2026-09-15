@@ -1467,21 +1467,9 @@ def scrape_kenneth():
             text,
         )
 
+        # Kenneth no debe repetir el primer párrafo
+    # como versículo en negrita.
     verse = ""
-
-    for text in paragraphs[:3]:
-
-        if (
-            "«" in text
-            or "(" in text
-            or "Bible Reading" in text
-            or "Lectura" in text
-        ):
-
-            verse = text
-
-            break
-
     audio = ""
 
     html = r.text
