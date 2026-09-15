@@ -971,7 +971,7 @@ async function crearImagenTarjeta() {
   ctx.fillStyle = "#9a7d89"; ctx.font = "18px Arial";
   ctx.fillText(womenCardDate.textContent || "Biblia Reina-Valera 1960", 540, 165);
 
-  ctx.fillStyle = "#5e4250"; ctx.font = "700 34px Georgia";
+  ctx.fillStyle = "#5e4250"; ctx.font = "700 44px Georgia";
   const lineas = ajustarTextoCanvas(ctx, versiculoTarjetaHoy.texto, 860);
   const alturaLinea = 48, inicioY = 255;
   lineas.forEach(function (linea, i) { ctx.fillText("“" + linea + "”", 540, inicioY + i * alturaLinea); });
