@@ -313,6 +313,7 @@ body {
   font-size: 25px;
   color: #d8a7bb;
   opacity: .75;
+  z-index: 3;
 }
 
 .women-devotional-card::after {
@@ -324,25 +325,51 @@ body {
   color: #d8a7bb;
   opacity: .7;
   transform: rotate(18deg);
+  z-index: 3;
 }
 
 .women-card-inner {
+  position: relative;
   max-width: 760px;
   margin: 0 auto;
   text-align: center;
   padding: 22px 16px 17px;
   border: 1px solid #eed5df;
   border-radius: 19px;
-  background: rgba(255,255,255,.78);
+  background: rgba(255,255,255,.82);
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.women-rose-watermark {
+  position: absolute;
+  right: -95px;
+  bottom: -105px;
+  width: 520px;
+  height: 520px;
+  opacity: .24;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.women-rose-watermark svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.women-card-content {
+  position: relative;
+  z-index: 2;
 }
 
 .women-card-label {
   display: inline-block;
-  padding: 6px 13px;
+  padding: 7px 18px;
   border-radius: 999px;
   background: #f6dce7;
   color: #8f5e73;
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 700;
   letter-spacing: .2px;
   margin-bottom: 9px;
@@ -350,22 +377,24 @@ body {
 
 .women-card-date {
   color: #9a7d89;
-  font-size: 12px;
-  margin-bottom: 13px;
+  font-size: 13px;
+  margin-bottom: 18px;
 }
 
 .women-card-text {
   margin: 0 auto;
-  max-width: 670px;
+  max-width: 690px;
   font-family: Georgia, "Times New Roman", serif;
-  font-size: clamp(20px, 4.8vw, 29px);
-  line-height: 1.38;
+  font-size: clamp(28px, 6vw, 42px);
+  line-height: 1.25;
   font-weight: 700;
   color: #5e4250;
 }
 
 .women-share {
-  margin-top: 15px;
+  position: relative;
+  z-index: 2;
+  margin-top: 18px;
   background: #9b637b;
 }
 
@@ -425,9 +454,25 @@ footer {
     border-radius: 16px;
   }
 
+  .women-rose-watermark {
+    width: 360px;
+    height: 360px;
+    right: -105px;
+    bottom: -80px;
+    opacity: .20;
+  }
+
+  .women-card-label {
+    font-size: 15px;
+  }
+
+  .women-card-date {
+    font-size: 12px;
+  }
+
   .women-card-text {
-    font-size: 21px;
-    line-height: 1.38;
+    font-size: clamp(25px, 8vw, 34px);
+    line-height: 1.28;
   }
 }
 
@@ -558,23 +603,60 @@ footer {
 
   <div class="women-card-inner">
 
-    <div class="women-card-label">
-      Para ti, mujer 🌷
+    <div class="women-rose-watermark" aria-hidden="true">
+      <svg viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <radialGradient id="rosePetal" cx="50%" cy="40%" r="70%">
+            <stop offset="0%" stop-color="#fff7fb"/>
+            <stop offset="55%" stop-color="#f4b9c9"/>
+            <stop offset="100%" stop-color="#d987a1"/>
+          </radialGradient>
+          <radialGradient id="roseCore" cx="45%" cy="35%" r="65%">
+            <stop offset="0%" stop-color="#f8d4df"/>
+            <stop offset="100%" stop-color="#c77892"/>
+          </radialGradient>
+        </defs>
+        <g transform="translate(250 255)">
+          <g fill="url(#rosePetal)">
+            <ellipse cx="0" cy="-116" rx="76" ry="138"/>
+            <ellipse cx="0" cy="116" rx="76" ry="138" transform="rotate(180)"/>
+            <ellipse cx="-116" cy="0" rx="76" ry="138" transform="rotate(-90)"/>
+            <ellipse cx="116" cy="0" rx="76" ry="138" transform="rotate(90)"/>
+            <ellipse cx="-82" cy="-82" rx="72" ry="124" transform="rotate(-45)"/>
+            <ellipse cx="82" cy="-82" rx="72" ry="124" transform="rotate(45)"/>
+            <ellipse cx="-82" cy="82" rx="72" ry="124" transform="rotate(45)"/>
+            <ellipse cx="82" cy="82" rx="72" ry="124" transform="rotate(-45)"/>
+          </g>
+          <g fill="url(#roseCore)" opacity=".92">
+            <ellipse cx="0" cy="-58" rx="54" ry="94" transform="rotate(18)"/>
+            <ellipse cx="56" cy="12" rx="54" ry="94" transform="rotate(70)"/>
+            <ellipse cx="-56" cy="12" rx="54" ry="94" transform="rotate(-70)"/>
+            <ellipse cx="0" cy="40" rx="62" ry="84"/>
+          </g>
+          <path d="M-28 26 C-6 -14 38 -4 28 30 C20 55 -18 56 -31 33 C-40 18 -34 -2 -17 -7 C1 -13 17 0 13 17 C9 31 -9 34 -17 22" fill="none" stroke="#a9657d" stroke-width="8" stroke-linecap="round" opacity=".58"/>
+        </g>
+      </svg>
     </div>
 
-    <div class="women-card-date" id="womenCardDate"></div>
+    <div class="women-card-content">
+      <div class="women-card-label">
+        📖 Versículo del día
+      </div>
 
-    <div class="women-card-text" id="womenCardText">
-      Cargando tu mensaje de hoy…
+      <div class="women-card-date" id="womenCardDate"></div>
+
+      <div class="women-card-text" id="womenCardText">
+        Cargando tu versículo de hoy…
+      </div>
+
+      <button
+        class="share-button women-share"
+        id="shareWomenCard"
+        type="button"
+      >
+        ↗ Compartir tarjeta
+      </button>
     </div>
-
-    <button
-      class="share-button women-share"
-      id="shareWomenCard"
-      type="button"
-    >
-      ↗ Compartir tarjeta
-    </button>
 
   </div>
 
@@ -927,18 +1009,86 @@ function generarTarjetaMujer(data) {
   womenCardText.innerHTML = "“" + escapeHtml(versiculoTarjetaHoy.texto) + "”<br><br><span style=\"font-size:.68em;font-weight:400;\">" + escapeHtml(versiculoTarjetaHoy.referencia) + "</span>";
 }
 
-function ajustarTextoCanvas(ctx, texto, maxWidth) {
+function dividirTextoCanvas(ctx, texto, maxWidth) {
   const palabras = (texto || "").split(/\s+/).filter(Boolean);
   const lineas = [];
   let actual = "";
+
   palabras.forEach(function (palabra) {
     const prueba = actual ? actual + " " + palabra : palabra;
-    if (ctx.measureText(prueba).width <= maxWidth) { actual = prueba; return; }
+    if (ctx.measureText(prueba).width <= maxWidth) {
+      actual = prueba;
+      return;
+    }
     if (actual) lineas.push(actual);
     actual = palabra;
   });
+
   if (actual) lineas.push(actual);
-  return lineas.slice(0, 9);
+  return lineas;
+}
+
+function ajustarVersiculoCanvas(ctx, texto, maxWidth, maxFont, minFont, maxLines) {
+  for (let tamanio = maxFont; tamanio >= minFont; tamanio -= 2) {
+    ctx.font = `700 ${tamanio}px Georgia`;
+    const lineas = dividirTextoCanvas(ctx, texto, maxWidth);
+    if (lineas.length <= maxLines) {
+      return {tamanio: tamanio, lineas: lineas};
+    }
+  }
+
+  ctx.font = `700 ${minFont}px Georgia`;
+  return {
+    tamanio: minFont,
+    lineas: dividirTextoCanvas(ctx, texto, maxWidth).slice(0, maxLines)
+  };
+}
+
+function dibujarRosaMarcaAgua(ctx, cx, cy, radio, opacidad) {
+  ctx.save();
+  ctx.globalAlpha = opacidad;
+  ctx.translate(cx, cy);
+
+  const grad = ctx.createRadialGradient(0, -radio * .10, radio * .08, 0, 0, radio);
+  grad.addColorStop(0, "#f7d8e3");
+  grad.addColorStop(.52, "#efb5c7");
+  grad.addColorStop(1, "#d986a0");
+
+  ctx.fillStyle = grad;
+  for (let i = 0; i < 10; i++) {
+    ctx.save();
+    ctx.rotate((Math.PI * 2 * i) / 10);
+    ctx.beginPath();
+    ctx.ellipse(0, -radio * .42, radio * .32, radio * .55, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  ctx.fillStyle = "#dfa0b6";
+  for (let i = 0; i < 7; i++) {
+    ctx.save();
+    ctx.rotate((Math.PI * 2 * i) / 7 + .18);
+    ctx.beginPath();
+    ctx.ellipse(0, -radio * .19, radio * .28, radio * .43, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  ctx.fillStyle = "#c98099";
+  ctx.beginPath();
+  ctx.arc(0, 0, radio * .22, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.strokeStyle = "#a8667d";
+  ctx.lineWidth = Math.max(4, radio * .035);
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(-radio * .08, radio * .08);
+  ctx.bezierCurveTo(-radio * .24, -radio * .08, radio * .12, -radio * .18, radio * .18, radio * .02);
+  ctx.bezierCurveTo(radio * .25, radio * .15, -radio * .02, radio * .20, -radio * .12, radio * .06);
+  ctx.stroke();
+
+  ctx.restore();
 }
 
 async function crearImagenTarjeta() {
@@ -964,6 +1114,9 @@ async function crearImagenTarjeta() {
   ctx.fillText("✿", 72, 95);
   ctx.save(); ctx.translate(ancho - 85, alto - 70); ctx.rotate(18 * Math.PI / 180); ctx.globalAlpha = .7; ctx.fillText("✿", 0, 0); ctx.restore(); ctx.globalAlpha = 1;
 
+  // Rosa grande y muy suave al fondo.
+  dibujarRosaMarcaAgua(ctx, 840, 520, 235, .20);
+
   ctx.fillStyle = "#f6dce7"; roundRect(ctx, 365, 82, 350, 48, 24); ctx.fill();
   ctx.fillStyle = "#8f5e73"; ctx.font = "700 22px Arial"; ctx.textAlign = "center";
   ctx.fillText("📖 Versículo del día", 540, 113);
@@ -971,56 +1124,25 @@ async function crearImagenTarjeta() {
   ctx.fillStyle = "#9a7d89"; ctx.font = "18px Arial";
   ctx.fillText(womenCardDate.textContent || "Biblia Reina-Valera 1960", 540, 165);
 
-  // Texto grande para leer bien en celular, pero ajustado
-  // automáticamente para que cualquier versículo quepa completo.
-  const maxWidth = 860;
-  const maxFontSize = 64;
-  const minFontSize = 42;
-  const maxLines = 6;
-  let fontSize = maxFontSize;
-  let lineas = [];
+  const ajuste = ajustarVersiculoCanvas(ctx, versiculoTarjetaHoy.texto, 820, 64, 42, 6);
+  ctx.fillStyle = "#5e4250";
+  ctx.font = `700 ${ajuste.tamanio}px Georgia`;
 
-  while (fontSize >= minFontSize) {
-    ctx.fillStyle = "#5e4250";
-    ctx.font = `700 ${fontSize}px Georgia`;
-    lineas = ajustarTextoCanvas(ctx, versiculoTarjetaHoy.texto, maxWidth);
+  const alturaLinea = Math.round(ajuste.tamanio * 1.18);
+  const inicioY = 250;
+  const totalAltura = (ajuste.lineas.length - 1) * alturaLinea;
+  const primerY = inicioY - Math.max(0, totalAltura - 155) / 2;
 
-    if (lineas.length <= maxLines) {
-      break;
-    }
-
-    fontSize -= 2;
-  }
-
-  // Si todavía fuera demasiado largo, se usa el tamaño mínimo.
-  ctx.font = `700 ${fontSize}px Georgia`;
-
-  const alturaLinea = Math.round(fontSize * 1.12);
-  const inicioY = 255;
-
-  lineas.forEach(function (linea, i) {
+  ajuste.lineas.forEach(function (linea, i) {
     let textoLinea = linea;
-
-    // Las comillas aparecen una sola vez: al principio y al final.
-    if (i === 0) {
-      textoLinea = "“" + textoLinea;
-    }
-
-    if (i === lineas.length - 1) {
-      textoLinea += "”";
-    }
-
-    ctx.fillText(
-      textoLinea,
-      540,
-      inicioY + i * alturaLinea
-    );
+    if (i === 0) textoLinea = "“" + textoLinea;
+    if (i === ajuste.lineas.length - 1) textoLinea += "”";
+    ctx.fillText(textoLinea, 540, primerY + i * alturaLinea);
   });
 
   ctx.fillStyle = "#9a7d89";
   ctx.font = "400 24px Georgia";
-  const yReferencia = inicioY + lineas.length * alturaLinea + 35;
-  ctx.fillText(versiculoTarjetaHoy.referencia, 540, yReferencia);
+  ctx.fillText(versiculoTarjetaHoy.referencia, 540, primerY + ajuste.lineas.length * alturaLinea + 30);
 
   return new Promise(function (resolve, reject) {
     canvas.toBlob(function (blob) {
