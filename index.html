@@ -358,7 +358,7 @@ body {
   margin: 0 auto;
   max-width: 670px;
   font-family: Georgia, "Times New Roman", serif;
-  font-size: clamp(30px, 6vw, 40px);
+  font-size: clamp(20px, 4.8vw, 29px);
   line-height: 1.38;
   font-weight: 700;
   color: #5e4250;
@@ -971,13 +971,56 @@ async function crearImagenTarjeta() {
   ctx.fillStyle = "#9a7d89"; ctx.font = "18px Arial";
   ctx.fillText(womenCardDate.textContent || "Biblia Reina-Valera 1960", 540, 165);
 
-  ctx.fillStyle = "#5e4250"; ctx.font = "700 64px Georgia";
-  const lineas = ajustarTextoCanvas(ctx, versiculoTarjetaHoy.texto, 860);
-  const alturaLinea = 48, inicioY = 255;
-  lineas.forEach(function (linea, i) { ctx.fillText("“" + linea + "”", 540, inicioY + i * alturaLinea); });
+  // Texto grande para leer bien en celular, pero ajustado
+  // automáticamente para que cualquier versículo quepa completo.
+  const maxWidth = 860;
+  const maxFontSize = 64;
+  const minFontSize = 42;
+  const maxLines = 6;
+  let fontSize = maxFontSize;
+  let lineas = [];
 
-  ctx.fillStyle = "#9a7d89"; ctx.font = "400 24px Georgia";
-  ctx.fillText(versiculoTarjetaHoy.referencia, 540, inicioY + lineas.length * alturaLinea + 35);
+  while (fontSize >= minFontSize) {
+    ctx.fillStyle = "#5e4250";
+    ctx.font = `700 ${fontSize}px Georgia`;
+    lineas = ajustarTextoCanvas(ctx, versiculoTarjetaHoy.texto, maxWidth);
+
+    if (lineas.length <= maxLines) {
+      break;
+    }
+
+    fontSize -= 2;
+  }
+
+  // Si todavía fuera demasiado largo, se usa el tamaño mínimo.
+  ctx.font = `700 ${fontSize}px Georgia`;
+
+  const alturaLinea = Math.round(fontSize * 1.12);
+  const inicioY = 255;
+
+  lineas.forEach(function (linea, i) {
+    let textoLinea = linea;
+
+    // Las comillas aparecen una sola vez: al principio y al final.
+    if (i === 0) {
+      textoLinea = "“" + textoLinea;
+    }
+
+    if (i === lineas.length - 1) {
+      textoLinea += "”";
+    }
+
+    ctx.fillText(
+      textoLinea,
+      540,
+      inicioY + i * alturaLinea
+    );
+  });
+
+  ctx.fillStyle = "#9a7d89";
+  ctx.font = "400 24px Georgia";
+  const yReferencia = inicioY + lineas.length * alturaLinea + 35;
+  ctx.fillText(versiculoTarjetaHoy.referencia, 540, yReferencia);
 
   return new Promise(function (resolve, reject) {
     canvas.toBlob(function (blob) {
