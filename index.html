@@ -558,18 +558,14 @@ footer {
 
   <div class="women-card-inner">
 
-    <div id="womenCardImage">
+    <div class="women-card-label">
+      Para ti, mujer 🌷
+    </div>
 
-      <div class="women-card-label">
-        Para ti, mujer 🌷
-      </div>
+    <div class="women-card-date" id="womenCardDate"></div>
 
-      <div class="women-card-date" id="womenCardDate"></div>
-
-      <div class="women-card-text" id="womenCardText">
-        Cargando tu mensaje de hoy…
-      </div>
-
+    <div class="women-card-text" id="womenCardText">
+      Cargando tu mensaje de hoy…
     </div>
 
     <button
@@ -589,8 +585,6 @@ footer {
 <footer>
   Devocionales diarios y Radio Cristiana
 </footer>
-
-<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 
 <script>
 
@@ -898,308 +892,124 @@ const womenCardDate = document.getElementById("womenCardDate");
 const womenCardText = document.getElementById("womenCardText");
 const shareWomenCard = document.getElementById("shareWomenCard");
 
-let textoTarjetaHoy = "";
+let versiculoTarjetaHoy = null;
 
-function contarPalabras(texto) {
+const versiculosTarjeta = [
+  {referencia: "Juan 14:27", texto: "La paz os dejo, mi paz os doy; yo no os la doy como el mundo la da. No se turbe vuestro corazón, ni tenga miedo."},
+  {referencia: "Juan 16:33", texto: "En el mundo tendréis aflicción; pero confiad, yo he vencido al mundo."},
+  {referencia: "Juan 15:5", texto: "El que permanece en mí, y yo en él, éste lleva mucho fruto; porque separados de mí nada podéis hacer."},
+  {referencia: "Efesios 3:20", texto: "Y a Aquel que es poderoso para hacer todas las cosas mucho más abundantemente de lo que pedimos o entendemos."},
+  {referencia: "Efesios 4:32", texto: "Antes sed benignos unos con otros, misericordiosos, perdonándoos unos a otros, como Dios también os perdonó a vosotros en Cristo."},
+  {referencia: "Efesios 6:10", texto: "Por lo demás, hermanos míos, fortaleceos en el Señor, y en el poder de su fuerza."},
+  {referencia: "Isaías 41:10", texto: "No temas, porque yo estoy contigo; no desmayes, porque yo soy tu Dios que te esfuerzo; siempre te ayudaré, siempre te sustentaré."},
+  {referencia: "Isaías 43:2", texto: "Cuando pases por las aguas, yo estaré contigo; y si por los ríos, no te anegarán."},
+  {referencia: "Isaías 40:31", texto: "Pero los que esperan a Jehová tendrán nuevas fuerzas; levantarán alas como las águilas."}
+];
 
-  return texto
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .length;
-
-}
-
-function extraerReferenciaBayless(item) {
-
-  if (item && item.versiculo) {
-    return item.versiculo;
-  }
-
-  const parrafos = (item && item.parrafos) || [];
-
-  const texto = parrafos.join(" ");
-
-  const coincidencia = texto.match(
-    /\b(?:Marcos|Mateo|Lucas|Juan|Salmos?|Proverbios|Romanos|Hebreos|Isa[ií]as|G[eé]nesis|Hechos|Santiago|1\s+Corintios|2\s+Corintios|1\s+Pedro|2\s+Pedro|1\s+Juan|2\s+Juan|3\s+Juan)\s+\d+:\d+(?:[-–]\d+)?/i
-  );
-
-  return coincidencia ? coincidencia[0] : "";
-}
-
-function limpiarReferencia(texto) {
-
-  return (texto || "")
-    .replace(/Bible Reading:/gi, "")
-    .trim();
-
-}
-
-function obtenerTemasParaTarjeta(data) {
-
-  const fuentes = [
-    data && data.encontacto,
-    data && data.bayless,
-    data && data.kenneth
-  ];
-
-  const acumulado = fuentes.map(function (item) {
-
-    if (!item) {
-      return "";
-    }
-
-    const ref = item === (data && data.bayless)
-      ? extraerReferenciaBayless(item)
-      : (item.versiculo || "");
-
-    return [
-      item.titulo || "",
-      ref || ""
-    ].join(" ");
-
-  }).join(" ");
-
-  const t = normalizarTexto(acumulado);
-
-  const temas = [];
-
-  const grupos = [
-    {
-      claves: ["todavia no", "esperar", "tiempo", "paciencia", "espera", "genesis 16"],
-      texto: "espera"
-    },
-    {
-      claves: ["corazon", "tesoro", "dar", "ofrenda", "marcos 12"],
-      texto: "corazon"
-    },
-    {
-      claves: ["glorifique", "glorificar", "palabra", "hechos 17"],
-      texto: "palabra"
-    },
-    {
-      claves: ["fe", "confi", "promesa"],
-      texto: "fe"
-    }
-  ];
-
-  grupos.forEach(function (grupo) {
-
-    if (grupo.claves.some(function (clave) {
-      return t.includes(clave);
-    })) {
-      temas.push(grupo.texto);
-    }
-
-  });
-
-  return temas;
-
+function obtenerVersiculoTarjeta(fechaTexto) {
+  const m = (fechaTexto || "").match(/(\d{1,2})\s+de\s+([a-záéíóú]+)\s+de\s+(\d{4})/i);
+  if (!m) return versiculosTarjeta[0];
+  const meses = {enero:0,febrero:1,marzo:2,abril:3,mayo:4,junio:5,julio:6,agosto:7,septiembre:8,octubre:9,noviembre:10,diciembre:11};
+  const dia = Number(m[1]);
+  const mes = meses[m[2].toLowerCase()];
+  const anio = Number(m[3]);
+  if (!Number.isInteger(mes)) return versiculosTarjeta[0];
+  const fecha = new Date(Date.UTC(anio, mes, dia));
+  const inicio = new Date(Date.UTC(anio, 0, 1));
+  const diaDelAnio = Math.floor((fecha - inicio) / 86400000) + 1;
+  return versiculosTarjeta[(diaDelAnio - 1) % versiculosTarjeta.length];
 }
 
 function generarTarjetaMujer(data) {
-
   const fecha = (data && data.fecha) || "";
+  versiculoTarjetaHoy = obtenerVersiculoTarjeta(fecha);
+  womenCardDate.textContent = fecha ? "Biblia Reina-Valera 1960 · " + fecha : "Biblia Reina-Valera 1960";
+  womenCardText.innerHTML = "“" + escapeHtml(versiculoTarjetaHoy.texto) + "”<br><br><span style=\"font-size:.68em;font-weight:400;\">" + escapeHtml(versiculoTarjetaHoy.referencia) + "</span>";
+}
 
-  const fuentes = [
-    data && data.encontacto,
-    data && data.bayless,
-    data && data.kenneth
-  ].filter(Boolean);
-
-  const candidatos = [];
-
-  fuentes.forEach(function (item) {
-
-    if (item.subtitulo) {
-      candidatos.push(item.subtitulo);
-    }
-
-    (item.parrafos || []).forEach(function (parrafo) {
-      const frases = (parrafo || "")
-        .split(/(?<=[.!?])\s+/)
-        .map(function (frase) {
-          return frase.trim();
-        })
-        .filter(function (frase) {
-          return frase.length >= 45;
-        });
-
-      frases.forEach(function (frase) {
-        candidatos.push(frase);
-      });
-    });
-
+function ajustarTextoCanvas(ctx, texto, maxWidth) {
+  const palabras = (texto || "").split(/\s+/).filter(Boolean);
+  const lineas = [];
+  let actual = "";
+  palabras.forEach(function (palabra) {
+    const prueba = actual ? actual + " " + palabra : palabra;
+    if (ctx.measureText(prueba).width <= maxWidth) { actual = prueba; return; }
+    if (actual) lineas.push(actual);
+    actual = palabra;
   });
+  if (actual) lineas.push(actual);
+  return lineas.slice(0, 9);
+}
 
-  // Quitar duplicados y textos de interfaz.
-  const unicos = [];
-  const vistos = new Set();
+async function crearImagenTarjeta() {
+  if (!versiculoTarjetaHoy) throw new Error("No se encontró el versículo del día.");
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  const ancho = 1080, alto = 760;
+  canvas.width = ancho; canvas.height = alto;
 
-  candidatos.forEach(function (texto) {
+  const degradado = ctx.createLinearGradient(0, 0, ancho, alto);
+  degradado.addColorStop(0, "#fffafc");
+  degradado.addColorStop(1, "#fff1f6");
+  ctx.fillStyle = degradado; ctx.fillRect(0, 0, ancho, alto);
 
-    const limpio = texto.replace(/\s+/g, " ").trim();
-    const clave = normalizarTexto(limpio);
+  ctx.strokeStyle = "#f1d9e3"; ctx.lineWidth = 3;
+  ctx.strokeRect(18, 18, ancho - 36, alto - 36);
 
-    if (!limpio || vistos.has(clave)) {
-      return;
-    }
+  ctx.fillStyle = "rgba(255,255,255,.92)";
+  roundRect(ctx, 45, 45, ancho - 90, alto - 90, 26);
+  ctx.fill(); ctx.strokeStyle = "#eed5df"; ctx.lineWidth = 2; ctx.stroke();
 
-    if (
-      clave.includes("skip to main content") ||
-      clave.includes("horario de transmision") ||
-      clave.includes("devocional diario") ||
-      clave.includes("respuestas para cada dia") ||
-      clave.includes("today,")
-    ) {
-      return;
-    }
+  ctx.fillStyle = "#d8a7bb"; ctx.globalAlpha = .75; ctx.font = "34px Georgia"; ctx.textAlign = "left";
+  ctx.fillText("✿", 72, 95);
+  ctx.save(); ctx.translate(ancho - 85, alto - 70); ctx.rotate(18 * Math.PI / 180); ctx.globalAlpha = .7; ctx.fillText("✿", 0, 0); ctx.restore(); ctx.globalAlpha = 1;
 
-    vistos.add(clave);
-    unicos.push(limpio);
+  ctx.fillStyle = "#f6dce7"; roundRect(ctx, 365, 82, 350, 48, 24); ctx.fill();
+  ctx.fillStyle = "#8f5e73"; ctx.font = "700 22px Arial"; ctx.textAlign = "center";
+  ctx.fillText("📖 Versículo del día", 540, 113);
 
+  ctx.fillStyle = "#9a7d89"; ctx.font = "18px Arial";
+  ctx.fillText(womenCardDate.textContent || "Biblia Reina-Valera 1960", 540, 165);
+
+  ctx.fillStyle = "#5e4250"; ctx.font = "700 34px Georgia";
+  const lineas = ajustarTextoCanvas(ctx, versiculoTarjetaHoy.texto, 860);
+  const alturaLinea = 48, inicioY = 255;
+  lineas.forEach(function (linea, i) { ctx.fillText("“" + linea + "”", 540, inicioY + i * alturaLinea); });
+
+  ctx.fillStyle = "#9a7d89"; ctx.font = "400 24px Georgia";
+  ctx.fillText(versiculoTarjetaHoy.referencia, 540, inicioY + lineas.length * alturaLinea + 35);
+
+  return new Promise(function (resolve, reject) {
+    canvas.toBlob(function (blob) {
+      if (blob) resolve(blob); else reject(new Error("No se pudo crear la imagen."));
+    }, "image/png");
   });
+}
 
-  let mensaje = "Mujer, confía en Dios hoy y deja que su Palabra fortalezca tu corazón.";
-
-  if (unicos.length) {
-
-    const hoy = new Date();
-    const inicio = new Date(hoy.getFullYear(), 0, 0);
-    const diaDelAno = Math.floor(
-      (hoy - inicio) / 86400000
-    );
-
-    const elegido = unicos[
-      diaDelAno % unicos.length
-    ];
-
-    let palabras = elegido
-      .split(/\s+/)
-      .filter(Boolean);
-
-    if (palabras.length > 20) {
-      palabras = palabras.slice(0, 20);
-    }
-
-    mensaje = palabras.join(" ");
-
-    if (!/[.!?]$/.test(mensaje)) {
-      mensaje += ".";
-    }
-
-  }
-
-  womenCardDate.textContent = fecha
-    ? "Inspirada en los devocionales de hoy · " + fecha
-    : "Inspirada en los devocionales de hoy";
-
-  womenCardText.textContent = mensaje;
-
-  textoTarjetaHoy =
-    "🌷 Para ti, mujer\n\n" +
-    mensaje +
-    "\n\nDevocionales Diarios";
-
+function roundRect(ctx, x, y, width, height, radius) {
+  ctx.beginPath(); ctx.moveTo(x + radius, y);
+  ctx.arcTo(x + width, y, x + width, y + height, radius);
+  ctx.arcTo(x + width, y + height, x, y + height, radius);
+  ctx.arcTo(x, y + height, x, y, radius);
+  ctx.arcTo(x, y, x + width, y, radius); ctx.closePath();
 }
 
 shareWomenCard.addEventListener("click", async function () {
-
-  const tarjeta = document.getElementById("womenCardImage");
-
-  if (!tarjeta || !window.html2canvas) {
-    alert("No se pudo preparar la imagen de la tarjeta.");
-    return;
-  }
-
-  const boton = shareWomenCard;
-  const textoOriginal = boton.textContent;
-  boton.disabled = true;
-  boton.textContent = "Preparando imagen…";
-
   try {
-
-    const canvas = await html2canvas(tarjeta, {
-      backgroundColor: null,
-      scale: Math.min(window.devicePixelRatio || 1, 2),
-      useCORS: true,
-      logging: false
-    });
-
-    const blob = await new Promise(function (resolve) {
-      canvas.toBlob(resolve, "image/png", 1);
-    });
-
-    if (!blob) {
-      throw new Error("No se pudo crear la imagen.");
-    }
-
-    const file = new File(
-      [blob],
-      "tarjeta-para-ti-mujer.png",
-      { type: "image/png" }
-    );
-
-    // En móviles compatibles abre directamente la ventana
-    // de compartir con la imagen como archivo.
-    if (navigator.share && navigator.canShare) {
-
-      const puedeCompartirArchivo = navigator.canShare({
-        files: [file]
-      });
-
-      if (puedeCompartirArchivo) {
-
-        await navigator.share({
-          title: "Para ti, mujer 🌷",
-          text: "Una palabra para tu corazón · Devocionales Diarios",
-          files: [file]
-        });
-
-        return;
-      }
-    }
-
-    // Respaldo: intenta copiar la imagen al portapapeles.
-    if (navigator.clipboard && window.ClipboardItem) {
-
-      const item = new ClipboardItem({
-        "image/png": blob
-      });
-
-      await navigator.clipboard.write([item]);
-      alert("La imagen de la tarjeta fue copiada. Puedes pegarla para compartirla.");
+    const blob = await crearImagenTarjeta();
+    const archivo = new File([blob], "versiculo-del-dia.png", {type: "image/png"});
+    if (navigator.share && (!navigator.canShare || navigator.canShare({files: [archivo]}))) {
+      await navigator.share({title: "Versículo del día · " + versiculoTarjetaHoy.referencia, text: "📖 " + versiculoTarjetaHoy.referencia, files: [archivo]});
       return;
     }
-
-    // Último respaldo: descargar la imagen para compartirla manualmente.
     const url = URL.createObjectURL(blob);
     const enlace = document.createElement("a");
-    enlace.href = url;
-    enlace.download = "tarjeta-para-ti-mujer.png";
-    document.body.appendChild(enlace);
-    enlace.click();
-    enlace.remove();
-    URL.revokeObjectURL(url);
-
-    alert("La tarjeta fue preparada como imagen PNG para compartirla.");
-
+    enlace.href = url; enlace.download = "versiculo-del-dia.png";
+    document.body.appendChild(enlace); enlace.click(); enlace.remove(); URL.revokeObjectURL(url);
   } catch (error) {
-
-    if (error && error.name === "AbortError") {
-      return;
-    }
-
     console.error(error);
-    alert("No se pudo preparar la imagen de la tarjeta.");
-
-  } finally {
-
-    boton.disabled = false;
-    boton.textContent = textoOriginal;
-
+    alert("No fue posible preparar la imagen para compartir.");
   }
-
 });
 
 /* =========================================================
