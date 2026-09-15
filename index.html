@@ -1095,7 +1095,9 @@ async function crearImagenTarjeta() {
   if (!versiculoTarjetaHoy) throw new Error("No se encontró el versículo del día.");
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
-  const ancho = 1080, alto = 760;
+  // Formato vertical pensado para verse como la tarjeta en un celular.
+  // Mantiene una proporción 3:4 en lugar del formato horizontal anterior.
+  const ancho = 1080, alto = 1440;
   canvas.width = ancho; canvas.height = alto;
 
   const degradado = ctx.createLinearGradient(0, 0, ancho, alto);
@@ -1112,26 +1114,26 @@ async function crearImagenTarjeta() {
 
   ctx.fillStyle = "#d8a7bb"; ctx.globalAlpha = .75; ctx.font = "34px Georgia"; ctx.textAlign = "left";
   ctx.fillText("✿", 72, 95);
-  ctx.save(); ctx.translate(ancho - 85, alto - 70); ctx.rotate(18 * Math.PI / 180); ctx.globalAlpha = .7; ctx.fillText("✿", 0, 0); ctx.restore(); ctx.globalAlpha = 1;
+  ctx.save(); ctx.translate(ancho - 85, alto - 90); ctx.rotate(18 * Math.PI / 180); ctx.globalAlpha = .7; ctx.fillText("✿", 0, 0); ctx.restore(); ctx.globalAlpha = 1;
 
   // Rosa grande y muy suave al fondo.
-  dibujarRosaMarcaAgua(ctx, 840, 520, 235, .20);
+  dibujarRosaMarcaAgua(ctx, 815, 1060, 330, .16);
 
-  ctx.fillStyle = "#f6dce7"; roundRect(ctx, 365, 82, 350, 48, 24); ctx.fill();
+  ctx.fillStyle = "#f6dce7"; roundRect(ctx, 365, 92, 350, 48, 24); ctx.fill();
   ctx.fillStyle = "#8f5e73"; ctx.font = "700 22px Arial"; ctx.textAlign = "center";
-  ctx.fillText("📖 Versículo del día", 540, 113);
+  ctx.fillText("📖 Versículo del día", 540, 123);
 
   ctx.fillStyle = "#9a7d89"; ctx.font = "18px Arial";
-  ctx.fillText(womenCardDate.textContent || "Biblia Reina-Valera 1960", 540, 165);
+  ctx.fillText(womenCardDate.textContent || "Biblia Reina-Valera 1960", 540, 195);
 
-  const ajuste = ajustarVersiculoCanvas(ctx, versiculoTarjetaHoy.texto, 820, 64, 42, 6);
+  const ajuste = ajustarVersiculoCanvas(ctx, versiculoTarjetaHoy.texto, 860, 64, 40, 9);
   ctx.fillStyle = "#5e4250";
   ctx.font = `700 ${ajuste.tamanio}px Georgia`;
 
   const alturaLinea = Math.round(ajuste.tamanio * 1.18);
-  const inicioY = 250;
+  const inicioY = 420;
   const totalAltura = (ajuste.lineas.length - 1) * alturaLinea;
-  const primerY = inicioY - Math.max(0, totalAltura - 155) / 2;
+  const primerY = inicioY - Math.max(0, totalAltura - 220) / 2;
 
   ajuste.lineas.forEach(function (linea, i) {
     let textoLinea = linea;
@@ -1142,7 +1144,7 @@ async function crearImagenTarjeta() {
 
   ctx.fillStyle = "#9a7d89";
   ctx.font = "400 24px Georgia";
-  ctx.fillText(versiculoTarjetaHoy.referencia, 540, primerY + ajuste.lineas.length * alturaLinea + 30);
+  ctx.fillText(versiculoTarjetaHoy.referencia, 540, primerY + ajuste.lineas.length * alturaLinea + 42);
 
   return new Promise(function (resolve, reject) {
     canvas.toBlob(function (blob) {
