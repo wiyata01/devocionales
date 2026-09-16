@@ -300,9 +300,14 @@ body {
 .women-devotional-card {
   position: relative;
   overflow: hidden;
+  width: 100%;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+  aspect-ratio: 4 / 5;
   background: linear-gradient(145deg, #fffafc 0%, #fff1f6 100%);
   border: 1px solid #f1d9e3;
-  padding: 16px;
+  padding: 12px;
 }
 
 .women-devotional-card::before {
@@ -330,7 +335,8 @@ body {
 
 .women-card-inner {
   position: relative;
-  max-width: 760px;
+  width: 100%;
+  height: 100%;
   margin: 0 auto;
   text-align: center;
   padding: 22px 16px 17px;
@@ -417,7 +423,7 @@ body {
   margin: 0 auto;
   max-width: 690px;
   font-family: Georgia, "Times New Roman", serif;
-  font-size: clamp(56px, 12vw, 84px);
+  font-size: clamp(42px, 8vw, 64px);
   line-height: 1.18;
   font-weight: 700;
   color: #5e4250;
@@ -477,7 +483,10 @@ footer {
   }
 
   .women-devotional-card {
-    padding: 11px;
+    width: 100%;
+    max-width: 600px;
+    aspect-ratio: 4 / 5;
+    padding: 9px;
     border-radius: 19px;
   }
 
@@ -495,16 +504,16 @@ footer {
   }
 
   .women-card-label {
-    font-size: 15px;
+    font-size: 30px;
   }
 
   .women-card-date {
-    font-size: 12px;
+    font-size: 24px;
   }
 
   .women-card-text {
-    font-size: clamp(25px, 8vw, 34px);
-    line-height: 1.28;
+    font-size: clamp(42px, 14vw, 64px);
+    line-height: 1.18;
   }
 }
 
@@ -1127,7 +1136,7 @@ async function crearImagenTarjeta() {
   if (!versiculoTarjetaHoy) throw new Error("No se encontró el versículo del día.");
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
-  const ancho = 1080, alto = 900;
+  const ancho = 1080, alto = 1350;
   canvas.width = ancho; canvas.height = alto;
 
   const degradado = ctx.createLinearGradient(0, 0, ancho, alto);
@@ -1144,7 +1153,7 @@ async function crearImagenTarjeta() {
 
   ctx.fillStyle = "#d8a7bb"; ctx.globalAlpha = .75; ctx.font = "34px Georgia"; ctx.textAlign = "left";
   ctx.fillText("✿", 72, 95);
-  ctx.save(); ctx.translate(ancho - 85, alto - 70); ctx.rotate(18 * Math.PI / 180); ctx.globalAlpha = .7; ctx.fillText("✿", 0, 0); ctx.restore(); ctx.globalAlpha = 1;
+  ctx.save(); ctx.translate(ancho - 85, alto - 95); ctx.rotate(18 * Math.PI / 180); ctx.globalAlpha = .7; ctx.fillText("✿", 0, 0); ctx.restore(); ctx.globalAlpha = 1;
 
   // Decoración solicitada: Princess en las dos esquinas,
   // sin quitar las flores existentes.
@@ -1154,27 +1163,27 @@ async function crearImagenTarjeta() {
   ctx.textAlign = "right";
   ctx.fillText("Princess", ancho - 30, 45);
   ctx.textAlign = "left";
-  ctx.fillText("Princess", 30, alto - 28);
+  ctx.fillText("Princess", 30, alto - 45);
   ctx.globalAlpha = 1;
 
   // Rosa grande y muy suave al fondo.
-  dibujarRosaMarcaAgua(ctx, 840, 520, 235, .20);
+  dibujarRosaMarcaAgua(ctx, 840, 800, 235, .20);
 
   ctx.fillStyle = "#f6dce7"; roundRect(ctx, 305, 82, 470, 68, 34); ctx.fill();
   ctx.fillStyle = "#8f5e73"; ctx.font = "700 44px Arial"; ctx.textAlign = "center";
   ctx.fillText("📖 Versículo del día", 540, 128);
 
   ctx.fillStyle = "#9a7d89"; ctx.font = "36px Arial";
-  ctx.fillText(womenCardDate.textContent || "Biblia Reina-Valera 1960", 540, 190);
+  ctx.fillText(womenCardDate.textContent || "Biblia Reina-Valera 1960", 540, 210);
 
-  const ajuste = ajustarVersiculoCanvas(ctx, versiculoTarjetaHoy.texto, 900, 128, 84, 6);
+  const ajuste = ajustarVersiculoCanvas(ctx, versiculoTarjetaHoy.texto, 900, 96, 64, 6);
   ctx.fillStyle = "#5e4250";
   ctx.font = `700 ${ajuste.tamanio}px Georgia`;
 
   const alturaLinea = Math.round(ajuste.tamanio * 1.18);
-  const inicioY = 315;
+  const inicioY = 540;
   const totalAltura = (ajuste.lineas.length - 1) * alturaLinea;
-  const primerY = inicioY - Math.max(0, totalAltura - 155) / 2;
+  const primerY = inicioY - Math.max(0, totalAltura - 260) / 2;
 
   ajuste.lineas.forEach(function (linea, i) {
     let textoLinea = linea;
@@ -1185,7 +1194,7 @@ async function crearImagenTarjeta() {
 
   ctx.fillStyle = "#9a7d89";
   ctx.font = "400 48px Georgia";
-  ctx.fillText(versiculoTarjetaHoy.referencia, 540, primerY + ajuste.lineas.length * alturaLinea + 30);
+  ctx.fillText(versiculoTarjetaHoy.referencia, 540, primerY + ajuste.lineas.length * alturaLinea + 45);
 
   return new Promise(function (resolve, reject) {
     canvas.toBlob(function (blob) {
