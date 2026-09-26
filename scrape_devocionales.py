@@ -705,26 +705,26 @@ def main():
         ZoneInfo("America/Bogota")
     )
 
-   meses = [
-    "enero",
-    "febrero",
-    "marzo",
-    "abril",
-    "mayo",
-    "junio",
-    "julio",
-    "agosto",
-    "septiembre",
-    "octubre",
-    "noviembre",
-    "diciembre"
-]
+      meses = [
+        "enero",
+        "febrero",
+        "marzo",
+        "abril",
+        "mayo",
+        "junio",
+        "julio",
+        "agosto",
+        "septiembre",
+        "octubre",
+        "noviembre",
+        "diciembre",
+    ]
 
-fecha_es = (
-    f"{ahora.day} de "
-    f"{meses[ahora.month - 1]} de "
-    f"{ahora.year}"
-)
+    fecha_es = (
+        f"{ahora.day} de "
+        f"{meses[ahora.month - 1]} de "
+        f"{ahora.year}"
+    )
     data = {
         "fecha": fecha_es,
         "generado": ahora.isoformat()
