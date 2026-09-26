@@ -705,7 +705,7 @@ def main():
         ZoneInfo("America/Bogota")
     )
 
-      meses = [
+    meses = [
         "enero",
         "febrero",
         "marzo",
@@ -725,10 +725,6 @@ def main():
         f"{meses[ahora.month - 1]} de "
         f"{ahora.year}"
     )
-    data = {
-        "fecha": fecha_es,
-        "generado": ahora.isoformat()
-    }
 
     # -----------------------------------------------------
     # Recuperar historial anterior
