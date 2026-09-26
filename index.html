@@ -1024,39 +1024,43 @@ const shareWomenCard = document.getElementById("shareWomenCard");
 
 let versiculoTarjetaHoy = null;
 
-const versiculosTarjeta = [
-  {referencia: "Juan 14:27", texto: "La paz os dejo, mi paz os doy; yo no os la doy como el mundo la da. No se turbe vuestro corazón, ni tenga miedo."},
-  {referencia: "Juan 16:33", texto: "En el mundo tendréis aflicción; pero confiad, yo he vencido al mundo."},
-  {referencia: "Juan 15:5", texto: "El que permanece en mí, y yo en él, éste lleva mucho fruto; porque separados de mí nada podéis hacer."},
-  {referencia: "Efesios 3:20", texto: "Y a Aquel que es poderoso para hacer todas las cosas mucho más abundantemente de lo que pedimos o entendemos."},
-  {referencia: "Efesios 4:32", texto: "Antes sed benignos unos con otros, misericordiosos, perdonándoos unos a otros, como Dios también os perdonó a vosotros en Cristo."},
-  {referencia: "Efesios 6:10", texto: "Por lo demás, hermanos míos, fortaleceos en el Señor, y en el poder de su fuerza."},
-  {referencia: "Isaías 41:10", texto: "No temas, porque yo estoy contigo; no desmayes, porque yo soy tu Dios que te esfuerzo; siempre te ayudaré, siempre te sustentaré."},
-  {referencia: "Isaías 43:2", texto: "Cuando pases por las aguas, yo estaré contigo; y si por los ríos, no te anegarán."},
-  {referencia: "Isaías 40:31", texto: "Pero los que esperan a Jehová tendrán nuevas fuerzas; levantarán alas como las águilas."}
-];
-
-function obtenerVersiculoTarjeta(fechaTexto) {
-  const m = (fechaTexto || "").match(/(\d{1,2})\s+de\s+([a-záéíóú]+)\s+de\s+(\d{4})/i);
-  if (!m) return versiculosTarjeta[0];
-  const meses = {enero:0,febrero:1,marzo:2,abril:3,mayo:4,junio:5,julio:6,agosto:7,septiembre:8,octubre:9,noviembre:10,diciembre:11};
-  const dia = Number(m[1]);
-  const mes = meses[m[2].toLowerCase()];
-  const anio = Number(m[3]);
-  if (!Number.isInteger(mes)) return versiculosTarjeta[0];
-  const fecha = new Date(Date.UTC(anio, mes, dia));
-  const inicio = new Date(Date.UTC(anio, 0, 1));
-  const diaDelAnio = Math.floor((fecha - inicio) / 86400000) + 1;
-  return versiculosTarjeta[(diaDelAnio - 1) % versiculosTarjeta.length];
-}
-
 function generarTarjetaMujer(data) {
-  const fecha = (data && data.fecha) || "";
-  versiculoTarjetaHoy = obtenerVersiculoTarjeta(fecha);
-  womenCardDate.textContent = fecha ? "Biblia Reina-Valera 1960 · " + fecha : "Biblia Reina-Valera 1960";
-  womenCardText.innerHTML = "“" + escapeHtml(versiculoTarjetaHoy.texto) + "”<br><br><span style=\"font-size:.68em;font-weight:400;\">" + escapeHtml(versiculoTarjetaHoy.referencia) + "</span>";
-}
 
+  const fecha = (data && data.fecha) || "";
+  const tarjeta = data && data.tarjeta_mujer;
+
+  if (!tarjeta || !tarjeta.texto || !tarjeta.referencia) {
+
+    womenCardDate.textContent =
+      fecha
+        ? "Biblia Reina-Valera Contemporánea · " + fecha
+        : "Biblia Reina-Valera Contemporánea";
+
+    womenCardText.textContent =
+      "No se pudo cargar el versículo de hoy.";
+
+    versiculoTarjetaHoy = null;
+
+    return;
+  }
+
+  versiculoTarjetaHoy = {
+    referencia: tarjeta.referencia,
+    texto: tarjeta.texto,
+    fuente: tarjeta.fuente || ""
+  };
+
+  womenCardDate.textContent =
+    "Biblia Reina-Valera Contemporánea · " + fecha;
+
+  womenCardText.innerHTML =
+    "“" +
+    escapeHtml(versiculoTarjetaHoy.texto) +
+    "”<br><br>" +
+    "<span style=\"font-size:.68em;font-weight:400;\">" +
+    escapeHtml(versiculoTarjetaHoy.referencia) +
+    "</span>";
+}
 function dividirTextoCanvas(ctx, texto, maxWidth) {
   const palabras = (texto || "").split(/\s+/).filter(Boolean);
   const lineas = [];
