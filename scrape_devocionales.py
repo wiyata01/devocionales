@@ -726,6 +726,10 @@ def main():
         f"{ahora.year}"
     )
 
+    data = {
+        "fecha": fecha_es,
+        "generado": ahora.isoformat()
+    }
     # -----------------------------------------------------
     # Recuperar historial anterior
     # -----------------------------------------------------
