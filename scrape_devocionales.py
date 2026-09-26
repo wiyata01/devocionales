@@ -54,7 +54,11 @@ def get_soup(url):
         timeout=TIMEOUT
     )
     r.raise_for_status()
-    return BeautifulSoup(r.text, "html.parser")
+
+    return BeautifulSoup(
+        r.text,
+        "html.parser"
+    )
 
 
 # =========================================================
@@ -69,20 +73,29 @@ def scrape_encontacto():
     html = str(soup)
 
     h1 = soup.find("h1")
-    title = clean(h1.get_text()) if h1 else ""
+    title = clean(
+        h1.get_text()
+    ) if h1 else ""
 
     h2 = soup.find("h2")
-    subtitle = clean(h2.get_text()) if h2 else ""
+    subtitle = clean(
+        h2.get_text()
+    ) if h2 else ""
 
     verse = ""
 
     verse_link = soup.find(
         "a",
-        href=re.compile(r"biblegateway\.com")
+        href=re.compile(
+            r"biblegateway\.com"
+        )
     )
 
     if verse_link:
-        verse = clean(verse_link.get_text())
+
+        verse = clean(
+            verse_link.get_text()
+        )
 
     audio = ""
 
@@ -96,11 +109,18 @@ def scrape_encontacto():
 
     paragraphs = []
 
-    for tag in soup.find_all(["p", "li"]):
+    for tag in soup.find_all(
+        ["p", "li"]
+    ):
 
-        t = clean(tag.get_text())
+        t = clean(
+            tag.get_text()
+        )
 
-        if not t or t == verse:
+        if not t:
+            continue
+
+        if t == verse:
             continue
 
         if "BIBLIA EN UN" in t.upper():
@@ -134,7 +154,9 @@ def scrape_encontacto():
 
 def scrape_bayless():
 
-    landing = "https://www.respuestasbc.com/devotional/"
+    landing = (
+        "https://www.respuestasbc.com/devotional/"
+    )
 
     r = requests.get(
         landing,
@@ -145,36 +167,54 @@ def scrape_bayless():
 
     r.raise_for_status()
 
-    soup = BeautifulSoup(r.text, "html.parser")
+    soup = BeautifulSoup(
+        r.text,
+        "html.parser"
+    )
 
     links = []
 
-    for a in soup.find_all("a", href=True):
+    for a in soup.find_all(
+        "a",
+        href=True
+    ):
 
-        href = urljoin(r.url, a["href"])
+        href = urljoin(
+            r.url,
+            a["href"]
+        )
 
         if "/devotional/" in href:
+
             links.append(href)
 
     if not links:
+
         raise RuntimeError(
             "No se encontró el devocional actual de Bayless Conley"
         )
 
-    # El listado normalmente coloca primero el más reciente.
+    # El listado normalmente coloca primero
+    # el devocional más reciente.
     final_url = links[0]
 
-    soup = get_soup(final_url)
+    soup = get_soup(
+        final_url
+    )
 
     h1 = soup.find("h1")
 
-    title = clean(h1.get_text()) if h1 else ""
+    title = clean(
+        h1.get_text()
+    ) if h1 else ""
 
     paragraphs = []
 
     for p in soup.find_all("p"):
 
-        t = clean(p.get_text())
+        t = clean(
+            p.get_text()
+        )
 
         if not t:
             continue
@@ -196,10 +236,13 @@ def scrape_bayless():
 
     sc_link = soup.find(
         "a",
-        href=re.compile(r"soundcloud\.com")
+        href=re.compile(
+            r"soundcloud\.com"
+        )
     )
 
     if sc_link:
+
         audio = sc_link["href"]
 
     return {
@@ -259,7 +302,9 @@ def scrape_kenneth():
                 "https://main.kcmlatino.org/devotional"
             )
 
-            audio = _find_kcm_audio(link)
+            audio = _find_kcm_audio(
+                link
+            )
 
             verse = ""
 
@@ -268,6 +313,7 @@ def scrape_kenneth():
                 and len(paragraphs[0]) < 160
                 and "«" in paragraphs[0]
             ):
+
                 verse = paragraphs[0]
 
             return {
@@ -289,10 +335,13 @@ def scrape_kenneth():
 
     first_link = soup.find(
         "a",
-        href=re.compile(r"/devotional/[\w\-]+/?$")
+        href=re.compile(
+            r"/devotional/[\w\-]+/?$"
+        )
     )
 
     if not first_link:
+
         raise RuntimeError(
             "No se encontró enlace a devocional de Kenneth Copeland"
         )
@@ -307,11 +356,15 @@ def scrape_kenneth():
 
 def _scrape_kcm_post(url):
 
-    soup = get_soup(url)
+    soup = get_soup(
+        url
+    )
 
     h1 = soup.find("h1")
 
-    title = clean(h1.get_text()) if h1 else ""
+    title = clean(
+        h1.get_text()
+    ) if h1 else ""
 
     paragraphs = [
         clean(p.get_text())
@@ -319,11 +372,18 @@ def _scrape_kcm_post(url):
         if clean(p.get_text())
     ]
 
-    audio = _find_kcm_audio(url, soup)
+    audio = _find_kcm_audio(
+        url,
+        soup
+    )
 
     verse = ""
 
-    if paragraphs and "«" in paragraphs[0]:
+    if (
+        paragraphs
+        and "«" in paragraphs[0]
+    ):
+
         verse = paragraphs[0]
 
     return {
@@ -337,7 +397,10 @@ def _scrape_kcm_post(url):
     }
 
 
-def _find_kcm_audio(url, soup=None):
+def _find_kcm_audio(
+    url,
+    soup=None
+):
 
     if soup is None:
         soup = get_soup(url)
@@ -356,8 +419,13 @@ def _find_kcm_audio(url, soup=None):
 # 4) TARJETA BÍBLICA PARA MUJERES
 # =========================================================
 
-# Solo se guardan los códigos de los tres libros.
-# NO se guardan versículos ni textos bíblicos.
+# SOLO se guardan los códigos de los tres libros.
+#
+# NO se guardan versículos.
+# NO se guardan textos bíblicos.
+#
+# Los textos se obtienen diariamente desde Bible.com.
+
 BIBLE_BOOKS = [
     ("PSA", "Salmos", 150),
     ("ISA", "Isaías", 66),
@@ -372,39 +440,88 @@ def cargar_historial_tarjeta(data):
         []
     )
 
-    if not isinstance(historial, list):
+    if not isinstance(
+        historial,
+        list
+    ):
+
         historial = []
 
     return historial
 
 
-def guardar_historial_tarjeta(data, historial):
+def guardar_historial_tarjeta(
+    data,
+    historial
+):
 
-    # Solo referencias, nunca textos.
-    data["tarjeta_mujer_historial"] = historial
+    # Solamente referencias usadas.
+    #
+    # Nunca guardamos aquí el texto bíblico.
+
+    data[
+        "tarjeta_mujer_historial"
+    ] = historial
 
 
-def extraer_versiculos_bible_com(soup, codigo, nombre_libro, capitulo):
+# =========================================================
+# EXTRACTOR BIBLE.COM
+# =========================================================
+
+def extraer_versiculos_bible_com(
+    soup,
+    codigo,
+    nombre_libro,
+    capitulo
+):
 
     """
-    Extrae los versículos visibles de una página de Bible.com.
+    Extrae los versículos visibles de Bible.com/RVC.
 
-    Bible.com muestra el texto RVC en el HTML de la página.
+    Bible.com puede presentar el número del versículo
+    de varias formas:
+
+        1 Texto del versículo
+
+    o:
+
+        1
+        Texto del versículo
+
+    o:
+
+        7¡Tú eres mi refugio!
+
+    Además, el texto de un versículo puede ocupar
+    varias líneas.
+
+    Esta función soporta esas variantes.
     """
+
+    texto = soup.get_text(
+        "\n"
+    )
+
+    lineas = []
+
+    for linea in texto.splitlines():
+
+        linea = clean(
+            linea
+        )
+
+        if linea:
+            lineas.append(
+                linea
+            )
 
     candidatos = []
 
-    texto = soup.get_text("\n")
-
-    # Buscamos líneas que comienzan con un número de versículo.
-    lineas = [
-        clean(linea)
-        for linea in texto.splitlines()
-        if clean(linea)
-    ]
-
     numero_actual = None
     contenido_actual = []
+
+    siguiente_numero = 1
+    esperando_texto_para = None
 
     def guardar_actual():
 
@@ -415,140 +532,320 @@ def extraer_versiculos_bible_com(soup, codigo, nombre_libro, capitulo):
             return
 
         contenido = clean(
-            " ".join(contenido_actual)
+            " ".join(
+                contenido_actual
+            )
         )
 
         if not contenido:
             return
 
-        # Evitar elementos que no son texto bíblico.
         if len(contenido) < 3:
             return
 
         referencia = (
-            f"{nombre_libro} {capitulo}:{numero_actual}"
+            f"{nombre_libro} "
+            f"{capitulo}:"
+            f"{numero_actual}"
         )
 
-        candidatos.append({
-            "referencia": referencia,
-            "texto": contenido,
-            "url": (
-                f"https://www.bible.com/es/bible/146/"
-                f"{codigo}.{capitulo}.RVC"
+        candidatos.append(
+            {
+                "referencia": referencia,
+                "texto": contenido,
+                "url": (
+                    "https://www.bible.com/es/bible/146/"
+                    f"{codigo}.{capitulo}.RVC"
+                )
+            }
+        )
+
+    def comenzar_versiculo(
+        numero,
+        contenido=""
+    ):
+
+        nonlocal numero_actual
+        nonlocal contenido_actual
+        nonlocal siguiente_numero
+        nonlocal esperando_texto_para
+
+        # Solo aceptamos la secuencia correcta:
+        #
+        # 1, 2, 3, 4, 5...
+        #
+        # Esto evita confundir números de navegación,
+        # capítulos o elementos externos.
+
+        if numero != siguiente_numero:
+            return False
+
+        guardar_actual()
+
+        numero_actual = numero
+
+        contenido_actual = []
+
+        if contenido:
+            contenido_actual.append(
+                contenido
             )
-        })
+
+            esperando_texto_para = None
+
+        else:
+
+            esperando_texto_para = numero
+
+        siguiente_numero += 1
+
+        return True
 
     for linea in lineas:
 
-        # Un versículo normalmente comienza con:
-        # 1 Texto...
-        # 2 Texto...
-        #
-        # También permitimos 1-2 dígitos.
-        m = re.match(
-    r"^(\d{1,3})\s*(.+)$",
-    linea
-)
+        low = linea.lower()
 
-        if m:
+        # -------------------------------------------------
+        # FIN DEL TEXTO BÍBLICO
+        # -------------------------------------------------
 
-            numero = int(m.group(1))
-            resto = clean(m.group(2))
+        if low.startswith(
+            "actualmente seleccionado"
+        ):
 
-            # Los números demasiado grandes probablemente
-            # pertenecen a elementos externos.
-            if 1 <= numero <= 200:
+            break
 
-                guardar_actual()
+        if low.startswith(
+            "destacar"
+        ):
 
-                numero_actual = numero
-                contenido_actual = [resto]
+            break
+
+        if low.startswith(
+            "copiar"
+        ):
+
+            break
+
+        if low.startswith(
+            "comparar"
+        ):
+
+            break
+
+        if low.startswith(
+            "compartir"
+        ):
+
+            break
+
+        # -------------------------------------------------
+        # SI EL NÚMERO DEL VERSÍCULO ESTABA SOLO
+        # -------------------------------------------------
+
+        if esperando_texto_para is not None:
+
+            # Si aparece otra línea numérica antes
+            # del texto, la ignoramos y seguimos esperando.
+
+            if re.fullmatch(
+                r"\d{1,3}",
+                linea
+            ):
 
                 continue
 
+            contenido = clean(
+                linea
+            )
+
+            if contenido:
+
+                contenido_actual = [
+                    contenido
+                ]
+
+                esperando_texto_para = None
+
+            continue
+
+        # -------------------------------------------------
+        # NÚMERO DE VERSÍCULO + TEXTO
+        # -------------------------------------------------
+
+        m = re.match(
+            r"^(\d{1,3})(.*)$",
+            linea
+        )
+
+        if m:
+
+            numero = int(
+                m.group(1)
+            )
+
+            resto = clean(
+                m.group(2)
+            )
+
+            # ---------------------------------------------
+            # CASO NORMAL:
+            #
+            # 1 Dichoso aquel...
+            #
+            # 7¡Tú eres mi refugio!
+            #
+            # 8«Yo te voy...
+            # ---------------------------------------------
+
+            if (
+                1 <= numero <= 200
+                and numero == siguiente_numero
+            ):
+
+                comenzar_versiculo(
+                    numero,
+                    resto
+                )
+
+                continue
+
+        # -------------------------------------------------
+        # NÚMERO DE VERSÍCULO SOLO
+        # -------------------------------------------------
+
+        if re.fullmatch(
+            r"\d{1,3}",
+            linea
+        ):
+
+            numero = int(
+                linea
+            )
+
+            if (
+                1 <= numero <= 200
+                and numero == siguiente_numero
+            ):
+
+                comenzar_versiculo(
+                    numero,
+                    ""
+                )
+
+                continue
+
+        # -------------------------------------------------
+        # TEXTO CONTINUACIÓN
+        # -------------------------------------------------
+
         if numero_actual is not None:
 
-            # Evitar texto de navegación de Bible.com.
-            low = linea.lower()
+            contenido_actual.append(
+                linea
+            )
 
-            if low.startswith("actualmente seleccionado"):
-                break
-
-            if low.startswith("destacar"):
-                break
-
-            if low.startswith("copiar"):
-                break
-
-            if low.startswith("comparar"):
-                break
-
-            if low.startswith("compartir"):
-                break
-
-            contenido_actual.append(linea)
-
+    # Guardar el último versículo.
     guardar_actual()
 
-    # Eliminar referencias duplicadas.
+    # -----------------------------------------------------
+    # ELIMINAR DUPLICADOS
+    # -----------------------------------------------------
+
     resultado = []
+
     vistos = set()
 
     for item in candidatos:
 
-        if item["referencia"] in vistos:
+        referencia = item[
+            "referencia"
+        ]
+
+        if referencia in vistos:
             continue
 
-        vistos.add(item["referencia"])
+        vistos.add(
+            referencia
+        )
 
-        resultado.append(item)
+        resultado.append(
+            item
+        )
 
     return resultado
 
 
-def obtener_capitulo_bible(codigo, nombre_libro, capitulo):
+# =========================================================
+# OBTENER CAPÍTULO BIBLE.COM
+# =========================================================
+
+def obtener_capitulo_bible(
+    codigo,
+    nombre_libro,
+    capitulo
+):
 
     url = (
-        f"https://www.bible.com/es/bible/146/"
+        "https://www.bible.com/es/bible/146/"
         f"{codigo}.{capitulo}.RVC"
     )
 
     print(
-        f"Buscando Biblia: {nombre_libro} {capitulo} RVC"
+        f"Buscando Biblia: "
+        f"{nombre_libro} "
+        f"{capitulo} RVC"
     )
 
-    soup = get_soup(url)
+    soup = get_soup(
+        url
+    )
 
-    versiculos = extraer_versiculos_bible_com(
-        soup,
-        codigo,
-        nombre_libro,
-        capitulo
+    versiculos = (
+        extraer_versiculos_bible_com(
+            soup,
+            codigo,
+            nombre_libro,
+            capitulo
+        )
     )
 
     if not versiculos:
 
         raise RuntimeError(
-            f"No se pudieron extraer versículos de {url}"
+            "No se pudieron extraer versículos de "
+            f"{url}"
         )
 
     return versiculos
 
 
-def obtener_nuevo_versiculo_mujer(data):
+# =========================================================
+# ELEGIR NUEVO VERSÍCULO
+# =========================================================
 
-    historial = cargar_historial_tarjeta(data)
+def obtener_nuevo_versiculo_mujer(
+    data
+):
 
-    usados = set(historial)
+    historial = (
+        cargar_historial_tarjeta(
+            data
+        )
+    )
 
-    # Creamos una secuencia determinada por la fecha.
-    #
-    # Esto hace que cada día se intente otro capítulo,
-    # pero el historial sigue siendo la protección definitiva
-    # contra repeticiones.
+    usados = set(
+        historial
+    )
+
+    # -----------------------------------------------------
+    # FECHA COLOMBIA
+    # -----------------------------------------------------
 
     fecha = datetime.datetime.now(
-        ZoneInfo("America/Bogota")
+        ZoneInfo(
+            "America/Bogota"
+        )
     ).date()
 
     inicio = datetime.date(
@@ -561,9 +858,18 @@ def obtener_nuevo_versiculo_mujer(data):
         fecha - inicio
     ).days
 
+    # -----------------------------------------------------
+    # TOTAL DE CAPÍTULOS
+    #
+    # Salmos = 150
+    # Isaías = 66
+    # Juan = 21
+    # -----------------------------------------------------
+
     total_capitulos = sum(
         cantidad
-        for _, _, cantidad in BIBLE_BOOKS
+        for _, _, cantidad
+        in BIBLE_BOOKS
     )
 
     posicion = (
@@ -571,15 +877,26 @@ def obtener_nuevo_versiculo_mujer(data):
         % total_capitulos
     )
 
-    # Convertir la posición a libro/capítulo.
+    # -----------------------------------------------------
+    # DETERMINAR LIBRO Y CAPÍTULO
+    # -----------------------------------------------------
+
     acumulado = 0
 
     libro_seleccionado = None
     capitulo_seleccionado = None
 
-    for codigo, nombre, cantidad in BIBLE_BOOKS:
+    for (
+        codigo,
+        nombre,
+        cantidad
+    ) in BIBLE_BOOKS:
 
-        if posicion < acumulado + cantidad:
+        if (
+            posicion
+            <
+            acumulado + cantidad
+        ):
 
             libro_seleccionado = (
                 codigo,
@@ -587,7 +904,9 @@ def obtener_nuevo_versiculo_mujer(data):
             )
 
             capitulo_seleccionado = (
-                posicion - acumulado + 1
+                posicion
+                - acumulado
+                + 1
             )
 
             break
@@ -597,58 +916,82 @@ def obtener_nuevo_versiculo_mujer(data):
     if libro_seleccionado is None:
 
         raise RuntimeError(
-            "No se pudo determinar el capítulo bíblico."
+            "No se pudo determinar "
+            "el capítulo bíblico."
         )
 
-    codigo, nombre = libro_seleccionado
-
-    # Primero intentamos el capítulo calculado.
-    candidatos = obtener_capitulo_bible(
-        codigo,
-        nombre,
-        capitulo_seleccionado
+    codigo, nombre = (
+        libro_seleccionado
     )
 
-    # Buscamos uno que jamás haya aparecido.
+    # -----------------------------------------------------
+    # PRIMER INTENTO:
+    # CAPÍTULO DETERMINADO POR LA FECHA
+    # -----------------------------------------------------
+
+    candidatos = (
+        obtener_capitulo_bible(
+            codigo,
+            nombre,
+            capitulo_seleccionado
+        )
+    )
+
     nuevos = [
         item
         for item in candidatos
-        if item["referencia"] not in usados
+        if item["referencia"]
+        not in usados
     ]
 
     if nuevos:
 
-        # Elegimos de manera determinista según la fecha.
         indice = (
             abs(dia_del_periodo)
             % len(nuevos)
         )
 
-        return nuevos[indice]
+        return nuevos[
+            indice
+        ]
 
-    # Si todos los versículos de ese capítulo ya fueron usados,
-    # buscamos otros capítulos de los tres libros.
+    # -----------------------------------------------------
+    # SI TODOS LOS VERSÍCULOS DE ESE CAPÍTULO
+    # YA FUERON USADOS
     #
-    # No se guarda texto en código.
-    for codigo, nombre, cantidad in BIBLE_BOOKS:
+    # BUSCAR EN LOS TRES LIBROS.
+    # -----------------------------------------------------
 
-        for capitulo in range(1, cantidad + 1):
+    for (
+        codigo,
+        nombre,
+        cantidad
+    ) in BIBLE_BOOKS:
+
+        for capitulo in range(
+            1,
+            cantidad + 1
+        ):
 
             try:
 
-                candidatos = obtener_capitulo_bible(
-                    codigo,
-                    nombre,
-                    capitulo
+                candidatos = (
+                    obtener_capitulo_bible(
+                        codigo,
+                        nombre,
+                        capitulo
+                    )
                 )
 
             except Exception:
+
                 continue
 
             nuevos = [
                 item
                 for item in candidatos
-                if item["referencia"] not in usados
+                if item["referencia"]
+                not in usados
             ]
 
             if nuevos:
@@ -658,39 +1001,62 @@ def obtener_nuevo_versiculo_mujer(data):
                     % len(nuevos)
                 )
 
-                return nuevos[indice]
+                return nuevos[
+                    indice
+                ]
 
     raise RuntimeError(
-        "No se encontró un versículo nuevo en Salmos, Isaías o Juan."
+        "No se encontró un versículo nuevo "
+        "en Salmos, Isaías o Juan."
     )
 
 
-def scrape_tarjeta_mujer(data):
+# =========================================================
+# TARJETA MUJER
+# =========================================================
 
-    nuevo = obtener_nuevo_versiculo_mujer(
-        data
+def scrape_tarjeta_mujer(
+    data
+):
+
+    nuevo = (
+        obtener_nuevo_versiculo_mujer(
+            data
+        )
     )
 
-    historial = cargar_historial_tarjeta(
-        data
+    historial = (
+        cargar_historial_tarjeta(
+            data
+        )
     )
 
-    referencia = nuevo["referencia"]
+    referencia = (
+        nuevo["referencia"]
+    )
 
     if referencia not in historial:
 
-        historial.append(referencia)
+        historial.append(
+            referencia
+        )
 
-    # Guardamos solamente referencias usadas.
+    # Guardamos únicamente referencias.
     guardar_historial_tarjeta(
         data,
         historial
     )
 
     return {
-        "referencia": nuevo["referencia"],
-        "texto": nuevo["texto"],
-        "fuente": nuevo["url"],
+        "referencia": nuevo[
+            "referencia"
+        ],
+        "texto": nuevo[
+            "texto"
+        ],
+        "fuente": nuevo[
+            "url"
+        ],
         "version": "RVC"
     }
 
@@ -702,7 +1068,9 @@ def scrape_tarjeta_mujer(data):
 def main():
 
     ahora = datetime.datetime.now(
-        ZoneInfo("America/Bogota")
+        ZoneInfo(
+            "America/Bogota"
+        )
     )
 
     meses = [
@@ -730,9 +1098,10 @@ def main():
         "fecha": fecha_es,
         "generado": ahora.isoformat()
     }
-    # -----------------------------------------------------
-    # Recuperar historial anterior
-    # -----------------------------------------------------
+
+    # =====================================================
+    # RECUPERAR HISTORIAL ANTERIOR
+    # =====================================================
 
     if DATA_FILE.exists():
 
@@ -746,14 +1115,22 @@ def main():
 
                 anterior = json.load(f)
 
-            if isinstance(anterior, dict):
+            if isinstance(
+                anterior,
+                dict
+            ):
 
-                historial = anterior.get(
-                    "tarjeta_mujer_historial",
-                    []
+                historial = (
+                    anterior.get(
+                        "tarjeta_mujer_historial",
+                        []
+                    )
                 )
 
-                if isinstance(historial, list):
+                if isinstance(
+                    historial,
+                    list
+                ):
 
                     data[
                         "tarjeta_mujer_historial"
@@ -762,13 +1139,14 @@ def main():
         except Exception as e:
 
             print(
-                "Aviso: no se pudo leer historial anterior:",
+                "Aviso: no se pudo leer "
+                "historial anterior:",
                 e
             )
 
-    # -----------------------------------------------------
-    # Devocionales
-    # -----------------------------------------------------
+    # =====================================================
+    # DEVOCIONALES
+    # =====================================================
 
     fuentes = {
         "encontacto": scrape_encontacto,
@@ -802,14 +1180,16 @@ def main():
 
             data[clave] = None
 
-    # -----------------------------------------------------
+    # =====================================================
     # TARJETA PARA MUJERES
-    # -----------------------------------------------------
+    # =====================================================
 
     try:
 
-        data["tarjeta_mujer"] = (
-            scrape_tarjeta_mujer(data)
+        data[
+            "tarjeta_mujer"
+        ] = scrape_tarjeta_mujer(
+            data
         )
 
         print(
@@ -828,8 +1208,11 @@ def main():
             file=sys.stderr
         )
 
-        # Si Bible.com falla ese día, conservamos
-        # la tarjeta anterior para no dejarla vacía.
+        # -------------------------------------------------
+        # SI BIBLE.COM FALLA:
+        # CONSERVAR TARJETA ANTERIOR
+        # -------------------------------------------------
+
         if DATA_FILE.exists():
 
             try:
@@ -842,22 +1225,31 @@ def main():
 
                     anterior = json.load(f)
 
-                if anterior.get("tarjeta_mujer"):
+                if anterior.get(
+                    "tarjeta_mujer"
+                ):
 
-                    data["tarjeta_mujer"] = (
-                        anterior["tarjeta_mujer"]
-                    )
+                    data[
+                        "tarjeta_mujer"
+                    ] = anterior[
+                        "tarjeta_mujer"
+                    ]
 
             except Exception:
-                data["tarjeta_mujer"] = None
+
+                data[
+                    "tarjeta_mujer"
+                ] = None
 
         else:
 
-            data["tarjeta_mujer"] = None
+            data[
+                "tarjeta_mujer"
+            ] = None
 
-    # -----------------------------------------------------
-    # Guardar
-    # -----------------------------------------------------
+    # =====================================================
+    # GUARDAR DATA.JSON
+    # =====================================================
 
     with open(
         DATA_FILE,
@@ -872,14 +1264,25 @@ def main():
             indent=2
         )
 
+    # =====================================================
+    # MOSTRAR ERRORES
+    # =====================================================
+
     if errores:
 
         print(
             "\nAlgunas fuentes fallaron hoy:\n - "
-            + "\n - ".join(errores),
+            + "\n - ".join(
+                errores
+            ),
             file=sys.stderr
         )
 
 
+# =========================================================
+# EJECUCIÓN
+# =========================================================
+
 if __name__ == "__main__":
+
     main()
