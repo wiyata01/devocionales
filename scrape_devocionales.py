@@ -446,9 +446,9 @@ def extraer_versiculos_bible_com(soup, codigo, nombre_libro, capitulo):
         #
         # También permitimos 1-2 dígitos.
         m = re.match(
-            r"^(\d{1,3})\s+(.+)$",
-            linea
-        )
+    r"^(\d{1,3})\s*(.+)$",
+    linea
+)
 
         if m:
 
