@@ -1,7 +1,9 @@
 {
   "fecha": "28 de septiembre de 2026",
   "generado": "2026-09-28T15:43:57.356772-05:00",
-  "tarjeta_mujer_historial": [],
+  "tarjeta_mujer_historial": [
+    "Salmos 91:15"
+  ],
   "encontacto": {
     "titulo": "Una libertad que considera a los demás",
     "subtitulo": "Como creyentes, estamos llamados a ser sensibles y considerados con aquellos que son nuevos en la fe.",
@@ -53,5 +55,12 @@
     "audio_url": "https://maincms.nyc3.digitaloceanspaces.com/public/6a5/15c/6f6/6a515c6f648d9197568286.mp3",
     "audio_tipo": "mp3",
     "link": "https://main.kcmlatino.org/devotional/libre-de-toda-carga/"
+  },
+  "tarjeta_mujer_fecha": "2026-09-28",
+  "tarjeta_mujer": {
+    "referencia": "Salmos 91:15",
+    "texto": "Él me invocará, y yo le responderé; estaré con él en medio de la angustia. Yo lo pondré a salvo y lo glorificaré.",
+    "fuente": "https://mrk214.github.io/snapshots/es___spa___spa/RVC_vid_146.json",
+    "version": "RVC"
   }
 }
