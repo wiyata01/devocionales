@@ -33,10 +33,18 @@ jobs:
           python -m pip install --upgrade pip
           pip install requests beautifulsoup4
 
-      - name: Actualizar devocionales
+            - name: Actualizar devocionales
         run: |
           python -u scrape_devocionales.py
 
+      - name: Actualizar tarjeta mujer
+        run: |
+          python -u actualizar_tarjeta_mujer.py
+
+      - name: Mostrar cambios
+        run: |
+          git status
+          git diff -- data.json
       - name: Mostrar cambios
         run: |
           git status
