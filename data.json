@@ -1,6 +1,6 @@
 {
-  "fecha": "30 de octubre de 2026",
-  "generado": "2026-10-30T23:49:42.916111-05:00",
+  "fecha": "31 de octubre de 2026",
+  "generado": "2026-10-31T00:05:03.574672-05:00",
   "tarjeta_mujer_historial": [
     "Salmos 91:15",
     "Isaías 25:8",
@@ -34,7 +34,8 @@
     "San Juan 16:3",
     "Salmos 101:5",
     "Isaías 35:2",
-    "San Juan 17:17"
+    "San Juan 17:17",
+    "Isaías 40:29"
   ],
   "encontacto": {
     "titulo": "La puerta abierta",
@@ -90,11 +91,11 @@
     "audio_tipo": "mp3",
     "link": "https://main.kcmlatino.org/devotional/es-tu-decision/"
   },
-  "tarjeta_mujer_fecha": "2026-10-30",
+  "tarjeta_mujer_fecha": "2026-10-31",
   "tarjeta_mujer": {
-    "referencia": "San Juan 17:17",
-    "texto": "Santifícalos en tu verdad; tu palabra es verdad.",
-    "fuente": "https://mrk214.github.io/snapshots/es___spa___spa/RVC_vid_146.json",
+    "referencia": "Isaías 40:29",
+    "texto": "El Señor da fuerzas al cansado, y aumenta el vigor del que desfallece.",
+    "fuente": "https://www.bible.com/es/bible/146/ISA.40.RVC",
     "version": "RVC"
   }
 }
