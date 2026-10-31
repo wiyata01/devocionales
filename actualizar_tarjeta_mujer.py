@@ -1,22 +1,13 @@
+
 #!/usr/bin/env python3
-
 """
-Actualiza únicamente la tarjeta bíblica motivacional ("tarjeta_mujer").
+Actualiza únicamente la tarjeta bíblica motivacional.
 
-Fuente: JSON estático de la Biblia Reina Valera Contemporánea (RVC),
-publicado por https://github.com/mrk214/snapshots vía GitHub Pages.
-No es un scraper de una página pensada para humanos, así que no hay
-bloqueos de bots ni captchas: es solo un archivo JSON servido como
-cualquier otro archivo estático.
+El texto bíblico se obtiene de la fuente de la Biblia RVC.
+Las referencias de este archivo sirven solamente para seleccionar
+versículos de ánimo, esperanza, paz, confianza y fortaleza.
 
-Reglas:
-- Cicla entre Salmos, Isaías y Juan, un versículo distinto cada día.
-- Guarda en el historial solo la REFERENCIA usada (nunca el texto),
-  para no repetir versículos mientras haya otros disponibles.
-- Si el workflow corre varias veces el mismo día, mantiene el mismo
-  versículo (no lo vuelve a sortear).
-- Si la fuente falla, NO borra la tarjeta anterior: deja la de ayer
-  puesta y solo avisa en los logs.
+No modifica En Contacto, Bayless ni Kenneth.
 """
 
 import datetime as dt
@@ -30,6 +21,11 @@ from zoneinfo import ZoneInfo
 DATA_FILE = Path("data.json")
 TIMEOUT = 60
 
+BIBLIA_URL = (
+    "https://mrk214.github.io/snapshots/"
+    "es___spa___spa/RVC_vid_146.json"
+)
+
 HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -38,162 +34,402 @@ HEADERS = {
     ),
 }
 
-# JSON estático con la Biblia RVC completa (español). Publicado vía
-# GitHub Pages por https://github.com/mrk214/snapshots
-BIBLIA_URL = "https://mrk214.github.io/snapshots/es___spa___spa/RVC_vid_146.json"
 
-# (book_usfm, cantidad_de_capitulos) - alternamos entre los tres libros
-LIBROS = [
-    ("PSA", 150),  # Salmos
-    ("ISA", 66),   # Isaías
-    ("JHN", 21),   # Juan
+# Referencias seleccionadas por sus mensajes de ánimo.
+# Aquí NO se escriben los textos de los versículos.
+# Los textos se obtienen de la Biblia RVC.
+
+REFERENCIAS_MOTIVACIONALES = [
+    # SALMOS: confianza, protección, esperanza y fortaleza
+    ("PSA", 23, 1),
+    ("PSA", 23, 4),
+    ("PSA", 27, 1),
+    ("PSA", 27, 14),
+    ("PSA", 34, 4),
+    ("PSA", 34, 8),
+    ("PSA", 37, 4),
+    ("PSA", 46, 1),
+    ("PSA", 46, 10),
+    ("PSA", 55, 22),
+    ("PSA", 91, 1),
+    ("PSA", 91, 2),
+    ("PSA", 91, 4),
+    ("PSA", 91, 11),
+    ("PSA", 103, 2),
+    ("PSA", 118, 6),
+    ("PSA", 121, 1),
+    ("PSA", 121, 2),
+    ("PSA", 126, 5),
+    ("PSA", 139, 14),
+    ("PSA", 145, 18),
+    ("PSA", 147, 3),
+    ("PSA", 147, 11),
+
+    # ISAÍAS: consuelo, renovación y presencia de Dios
+    ("ISA", 40, 29),
+    ("ISA", 40, 31),
+    ("ISA", 41, 10),
+    ("ISA", 43, 1),
+    ("ISA", 43, 2),
+    ("ISA", 43, 4),
+    ("ISA", 43, 18),
+    ("ISA", 46, 4),
+    ("ISA", 49, 15),
+    ("ISA", 54, 10),
+    ("ISA", 58, 11),
+    ("ISA", 60, 1),
+    ("ISA", 61, 3),
+    ("ISA", 66, 13),
+
+    # JUAN: vida, paz, amor y esperanza en Jesús
+    ("JHN", 1, 5),
+    ("JHN", 6, 35),
+    ("JHN", 8, 12),
+    ("JHN", 10, 10),
+    ("JHN", 10, 27),
+    ("JHN", 10, 28),
+    ("JHN", 11, 25),
+    ("JHN", 14, 1),
+    ("JHN", 14, 18),
+    ("JHN", 14, 27),
+    ("JHN", 15, 5),
+    ("JHN", 15, 9),
+    ("JHN", 16, 22),
+    ("JHN", 16, 33),
 ]
 
 
 def hoy_colombia():
-    return dt.datetime.now(ZoneInfo("America/Bogota")).date()
+    return dt.datetime.now(
+        ZoneInfo("America/Bogota")
+    ).date()
 
 
 def cargar_data():
     if not DATA_FILE.exists():
         return {}
+
     try:
-        with DATA_FILE.open("r", encoding="utf-8") as f:
-            data = json.load(f)
+        with DATA_FILE.open(
+            "r",
+            encoding="utf-8"
+        ) as archivo:
+            data = json.load(archivo)
+
         return data if isinstance(data, dict) else {}
+
     except Exception as error:
-        print("Aviso: no se pudo leer data.json:", error)
+        print(
+            "Aviso: no se pudo leer data.json:",
+            error
+        )
         return {}
 
 
 def guardar_data(data):
-    with DATA_FILE.open("w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-        f.write("\n")
+    with DATA_FILE.open(
+        "w",
+        encoding="utf-8"
+    ) as archivo:
+        json.dump(
+            data,
+            archivo,
+            ensure_ascii=False,
+            indent=2
+        )
+        archivo.write("\n")
 
 
 def descargar_biblia():
-    print(f"Descargando Biblia RVC desde: {BIBLIA_URL}")
-    r = requests.get(BIBLIA_URL, headers=HEADERS, timeout=TIMEOUT)
-    print(f"  HTTP {r.status_code} - {len(r.content)} bytes")
-    r.raise_for_status()
-    return r.json()
+    print(
+        "Descargando Biblia RVC desde la fuente bíblica..."
+    )
+
+    respuesta = requests.get(
+        BIBLIA_URL,
+        headers=HEADERS,
+        timeout=TIMEOUT
+    )
+
+    print(
+        f"HTTP {respuesta.status_code} - "
+        f"{len(respuesta.content)} bytes"
+    )
+
+    respuesta.raise_for_status()
+
+    biblia = respuesta.json()
+
+    if not isinstance(
+        biblia.get("books"),
+        list
+    ):
+        raise RuntimeError(
+            "La fuente no contiene la lista de libros esperada."
+        )
+
+    return biblia
 
 
-def extraer_versiculos_capitulo(biblia, book_usfm, numero_capitulo):
-    """Devuelve una lista de {referencia, texto} para cada versículo de
-    ese capítulo, usando el JSON completo ya descargado.
-
-    NOTA: el JSON de producción (mrk214/snapshots) usa las llaves "usfm"
-    y "human" tanto en libros como en capítulos (no "book_usfm"/"name"
-    como documenta el types.ts de ese proyecto, que describe el esquema
-    de desarrollo, no el de producción). Ya verificado contra el archivo
-    real.
+def extraer_versiculos_capitulo(
+    biblia,
+    codigo,
+    numero_capitulo
+):
+    """
+    Reúne las líneas asociadas a cada versículo del capítulo.
+    No resume ni reescribe el texto obtenido de la fuente.
     """
 
-    chapter_usfm = f"{book_usfm}.{numero_capitulo}"
+    identificador = (
+        f"{codigo}.{numero_capitulo}"
+    )
 
     libro = next(
-        (b for b in biblia.get("books", []) if b.get("usfm") == book_usfm),
-        None,
+        (
+            item
+            for item in biblia.get("books", [])
+            if item.get("usfm") == codigo
+        ),
+        None
     )
+
     if not libro:
-        raise RuntimeError(f"No se encontró el libro {book_usfm} en el JSON.")
+        raise RuntimeError(
+            f"No se encontró el libro {codigo}."
+        )
 
     capitulo = next(
-        (c for c in libro.get("chapters", []) if c.get("usfm") == chapter_usfm),
-        None,
+        (
+            item
+            for item in libro.get("chapters", [])
+            if item.get("usfm") == identificador
+        ),
+        None
     )
+
     if not capitulo:
-        raise RuntimeError(f"No se encontró el capítulo {chapter_usfm} en el JSON.")
+        raise RuntimeError(
+            f"No se encontró el capítulo {identificador}."
+        )
 
-    nombre_libro = libro.get("human", book_usfm)
+    nombre_libro = libro.get("human", codigo)
 
-    versos = {}
+    partes_por_versiculo = {}
+
     for item in capitulo.get("items", []):
+
         if item.get("type") != "verse":
             continue
-        texto = " ".join(item.get("lines", [])).strip()
+
+        lineas = [
+            str(linea).strip()
+            for linea in item.get("lines", [])
+            if str(linea).strip()
+        ]
+
+        texto = " ".join(lineas).strip()
+
         if not texto:
             continue
-        for vn in item.get("verse_numbers", []):
-            versos.setdefault(vn, []).append(texto)
+
+        numeros = item.get("verse_numbers", [])
+
+        if not isinstance(numeros, list):
+            numeros = [numeros]
+
+        for numero in numeros:
+            try:
+                numero = int(numero)
+            except (TypeError, ValueError):
+                continue
+
+            partes_por_versiculo.setdefault(
+                numero,
+                []
+            ).append(texto)
 
     resultado = []
-    for vn in sorted(versos):
-        resultado.append({
-            "referencia": f"{nombre_libro} {numero_capitulo}:{vn}",
-            "texto": " ".join(versos[vn]),
-            "fuente": BIBLIA_URL,
-        })
 
-    if not resultado:
-        raise RuntimeError(f"El capítulo {chapter_usfm} no tiene versículos.")
+    for numero in sorted(partes_por_versiculo):
+
+        partes = []
+
+        for parte in partes_por_versiculo[numero]:
+            if parte not in partes:
+                partes.append(parte)
+
+        texto = " ".join(partes).strip()
+
+        if not texto:
+            continue
+
+        resultado.append({
+            "id": (
+                codigo,
+                numero_capitulo,
+                numero
+            ),
+            "referencia": (
+                f"{nombre_libro} "
+                f"{numero_capitulo}:{numero}"
+            ),
+            "texto": texto,
+            "fuente": (
+                "https://www.bible.com/es/bible/146/"
+                f"{codigo}.{numero_capitulo}.RVC"
+            ),
+        })
 
     return resultado
 
 
-def obtener_nuevo_versiculo(biblia, data, hoy):
-    historial = data.get("tarjeta_mujer_historial", [])
-    if not isinstance(historial, list):
-        historial = []
-    usados = {item for item in historial if isinstance(item, str)}
+def obtener_versiculos_motivacionales(biblia):
 
-    inicio = dt.date(2026, 1, 1)
-    dias = max((hoy - inicio).days, 0)
+    por_id = {}
 
-    # Alternamos: Salmos, Isaías, Juan, Salmos, Isaías, Juan...
-    indice_libro = dias % len(LIBROS)
-    book_usfm, cantidad_capitulos = LIBROS[indice_libro]
-    capitulo = (dias // len(LIBROS)) % cantidad_capitulos + 1
+    capitulos_necesarios = sorted({
+        (codigo, capitulo)
+        for codigo, capitulo, numero_versiculo
+        in REFERENCIAS_MOTIVACIONALES
+    })
 
-    candidatos = extraer_versiculos_capitulo(biblia, book_usfm, capitulo)
-    nuevos = [c for c in candidatos if c["referencia"] not in usados]
+    for codigo, capitulo in capitulos_necesarios:
 
-    if nuevos:
-        return nuevos[dias % len(nuevos)]
+        versiculos = extraer_versiculos_capitulo(
+            biblia,
+            codigo,
+            capitulo
+        )
 
-    # Si ya se usaron todos los versículos de ese capítulo puntual,
-    # buscamos el primer capítulo (de cualquiera de los 3 libros) que
-    # todavía tenga un versículo sin usar.
-    for book_usfm, cantidad_capitulos in LIBROS:
-        for numero_capitulo in range(1, cantidad_capitulos + 1):
-            try:
-                candidatos = extraer_versiculos_capitulo(biblia, book_usfm, numero_capitulo)
-            except Exception:
-                continue
-            nuevos = [c for c in candidatos if c["referencia"] not in usados]
-            if nuevos:
-                return nuevos[dias % len(nuevos)]
+        for versiculo in versiculos:
+            por_id[versiculo["id"]] = versiculo
 
-    raise RuntimeError("No se encontró un versículo nuevo en Salmos, Isaías o Juan.")
+    candidatos = []
+    faltantes = []
+
+    for referencia_id in REFERENCIAS_MOTIVACIONALES:
+
+        versiculo = por_id.get(
+            referencia_id
+        )
+
+        if not versiculo:
+            faltantes.append(
+                referencia_id
+            )
+            continue
+
+        texto = versiculo["texto"].strip()
+
+        # Evitar textos vacíos o fragmentos demasiado cortos.
+        # El texto aceptado se conserva sin resumir ni modificar.
+        if len(texto) < 15:
+            faltantes.append(
+                referencia_id
+            )
+            continue
+
+        candidatos.append(
+            versiculo
+        )
+
+    if not candidatos:
+        raise RuntimeError(
+            "No se pudo obtener ningún versículo motivacional."
+        )
+
+    if faltantes:
+        print(
+            "Aviso: se omitieron "
+            f"{len(faltantes)} referencias ausentes o vacías."
+        )
+
+    return candidatos
 
 
 def main():
+
     data = cargar_data()
+
     hoy = hoy_colombia()
     fecha_iso = hoy.isoformat()
 
-    # Evitar cambiar la tarjeta varias veces el mismo día
+    # No cambiar el versículo varias veces el mismo día.
     if data.get("tarjeta_mujer_fecha") == fecha_iso:
-        tarjeta = data.get("tarjeta_mujer")
-        if isinstance(tarjeta, dict) and tarjeta.get("texto"):
-            print(f"OK - tarjeta mujer: ya estaba actualizada para {fecha_iso}: "
-                  f"{tarjeta.get('referencia', '')}")
+
+        tarjeta = data.get(
+            "tarjeta_mujer"
+        )
+
+        if (
+            isinstance(tarjeta, dict)
+            and tarjeta.get("texto")
+            and tarjeta.get("referencia")
+        ):
+            print(
+                "OK - tarjeta mujer: ya estaba actualizada "
+                f"para {fecha_iso}: "
+                f"{tarjeta['referencia']}"
+            )
             return
 
     try:
-        biblia = descargar_biblia()
-        nuevo = obtener_nuevo_versiculo(biblia, data, hoy)
 
-        historial = data.get("tarjeta_mujer_historial", [])
+        biblia = descargar_biblia()
+
+        candidatos = obtener_versiculos_motivacionales(
+            biblia
+        )
+
+        historial = data.get(
+            "tarjeta_mujer_historial",
+            []
+        )
+
         if not isinstance(historial, list):
             historial = []
+
+        usados = {
+            referencia
+            for referencia in historial
+            if isinstance(referencia, str)
+        }
+
+        disponibles = [
+            versiculo
+            for versiculo in candidatos
+            if versiculo["referencia"] not in usados
+        ]
+
+        # Cuando se agoten las referencias seleccionadas,
+        # comenzar un nuevo ciclo sin salir de los tres libros.
+        if not disponibles:
+            disponibles = candidatos
+            print(
+                "Se agotaron las referencias motivacionales. "
+                "Comienza un nuevo ciclo."
+            )
+
+        inicio = dt.date(2026, 1, 1)
+
+        dias = max(
+            (hoy - inicio).days,
+            0
+        )
+
+        nuevo = disponibles[
+            dias % len(disponibles)
+        ]
+
         if nuevo["referencia"] not in historial:
-            historial.append(nuevo["referencia"])
+            historial.append(
+                nuevo["referencia"]
+            )
 
         data["tarjeta_mujer_historial"] = historial
         data["tarjeta_mujer_fecha"] = fecha_iso
+
         data["tarjeta_mujer"] = {
             "referencia": nuevo["referencia"],
             "texto": nuevo["texto"],
@@ -202,11 +438,19 @@ def main():
         }
 
         guardar_data(data)
-        print(f"OK - tarjeta mujer: {nuevo['referencia']}")
+
+        print(
+            "OK - tarjeta mujer: "
+            f"{nuevo['referencia']}"
+        )
 
     except Exception as error:
-        # Si la fuente falla, NO borramos la tarjeta anterior.
-        print(f"AVISO - tarjeta mujer no actualizada: {error}")
+
+        # Si la fuente falla, conservar la tarjeta anterior.
+        print(
+            "AVISO - tarjeta mujer no actualizada:",
+            error
+        )
 
 
 if __name__ == "__main__":
