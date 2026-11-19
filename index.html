@@ -493,7 +493,7 @@ footer {
   .women-devotional-card {
     width: 100%;
     max-width: 500px;
-    min-height: 500px;
+    aspect-ratio: 4 / 5;
     padding: 9px;
     border-radius: 19px;
   }
@@ -1081,19 +1081,30 @@ function dividirTextoCanvas(ctx, texto, maxWidth) {
   return lineas;
 }
 
-function ajustarVersiculoCanvas(ctx, texto, maxWidth, maxFont, minFont, maxLines) {
-  for (let tamanio = maxFont; tamanio >= minFont; tamanio -= 2) {
+function ajustarVersiculoCanvas(ctx, texto, maxWidth, maxFont, minFont, maxHeight) {
+  for (let tamanio = maxFont; tamanio >= minFont; tamanio -= 1) {
     ctx.font = `700 ${tamanio}px Georgia`;
+
     const lineas = dividirTextoCanvas(ctx, texto, maxWidth);
-    if (lineas.length <= maxLines) {
-      return {tamanio: tamanio, lineas: lineas};
+    const alturaLinea = Math.round(tamanio * 1.18);
+    const alturaTotal = lineas.length * alturaLinea;
+
+    if (alturaTotal <= maxHeight) {
+      return {
+        tamanio: tamanio,
+        lineas: lineas,
+        alturaLinea: alturaLinea
+      };
     }
   }
 
   ctx.font = `700 ${minFont}px Georgia`;
+  const lineas = dividirTextoCanvas(ctx, texto, maxWidth);
+
   return {
     tamanio: minFont,
-    lineas: dividirTextoCanvas(ctx, texto, maxWidth)
+    lineas: lineas,
+    alturaLinea: Math.round(minFont * 1.18)
   };
 }
 
@@ -1188,25 +1199,47 @@ async function crearImagenTarjeta() {
   ctx.fillStyle = "#9a7d89"; ctx.font = "36px Arial";
   ctx.fillText(womenCardDate.textContent || "Biblia Reina-Valera 1960", 540, 210);
 
-  const ajuste = ajustarVersiculoCanvas(ctx, versiculoTarjetaHoy.texto, 900, 95, 52, 14);
+  // El versículo ocupa solamente el espacio entre la fecha y la referencia.
+  const zonaTextoSuperior = 270;
+  const zonaTextoInferior = 1110;
+  const alturaDisponible = zonaTextoInferior - zonaTextoSuperior;
+
+  const ajuste = ajustarVersiculoCanvas(
+    ctx,
+    versiculoTarjetaHoy.texto,
+    900,
+    95,
+    24,
+    alturaDisponible
+  );
+
   ctx.fillStyle = "#5e4250";
   ctx.font = `700 ${ajuste.tamanio}px Georgia`;
+  ctx.textAlign = "center";
 
-  const alturaLinea = Math.round(ajuste.tamanio * 1.18);
-  const inicioY = 540;
-  const totalAltura = (ajuste.lineas.length - 1) * alturaLinea;
-  const primerY = inicioY - Math.max(0, totalAltura - 260) / 2;
+  const alturaTotal = ajuste.lineas.length * ajuste.alturaLinea;
+  const primerY =
+    zonaTextoSuperior +
+    (alturaDisponible - alturaTotal) / 2 +
+    ajuste.tamanio;
 
   ajuste.lineas.forEach(function (linea, i) {
     let textoLinea = linea;
     if (i === 0) textoLinea = "“" + textoLinea;
     if (i === ajuste.lineas.length - 1) textoLinea += "”";
-    ctx.fillText(textoLinea, 540, primerY + i * alturaLinea);
+
+    ctx.fillText(
+      textoLinea,
+      540,
+      primerY + i * ajuste.alturaLinea
+    );
   });
 
+  // La referencia queda fija debajo del área del versículo.
   ctx.fillStyle = "#9a7d89";
-  ctx.font = "400 48px Georgia";
-  ctx.fillText(versiculoTarjetaHoy.referencia, 540, primerY + ajuste.lineas.length * alturaLinea + 45);
+  ctx.font = "400 44px Georgia";
+  ctx.textAlign = "center";
+  ctx.fillText(versiculoTarjetaHoy.referencia, 540, 1215);
 
   return new Promise(function (resolve, reject) {
     canvas.toBlob(function (blob) {
