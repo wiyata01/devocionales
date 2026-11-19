@@ -966,7 +966,27 @@ async function compartirDevocional(encodedDevo, fuente) {
   }
 
   const titulo = devo.titulo || "Devocional diario";
-  const resumen = construirResumen(devo.parrafos, 430);
+
+let parrafosParaCompartir = devo.parrafos || [];
+
+if (fuente === "bayless") {
+  parrafosParaCompartir = parrafosParaCompartir.filter(function (p) {
+    const texto = normalizarTexto(p).trim();
+
+    return (
+      texto &&
+      !texto.includes("skip to main content") &&
+      !texto.includes("horario de transmision") &&
+      !texto.includes("devocional diario") &&
+      !texto.includes("respuestas para cada dia") &&
+      !texto.includes("recibir devocionales diarios") &&
+      !texto.startsWith("today, ") &&
+      !texto.startsWith("#")
+    );
+  });
+}
+
+const resumen = construirResumen(parrafosParaCompartir, 430);
 
   const links = {
     encontacto: "https://www.encontacto.org/lea/devocionales-diarios",
