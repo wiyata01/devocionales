@@ -304,7 +304,7 @@ body {
   max-width: 500px;
   margin-left: auto;
   margin-right: auto;
-  aspect-ratio: 4 / 5;
+  min-height: 500px;
   background: linear-gradient(145deg, #fffafc 0%, #fff1f6 100%);
   border: 1px solid #f1d9e3;
   padding: 12px;
@@ -336,15 +336,16 @@ body {
 .women-card-inner {
   position: relative;
   width: 100%;
-  height: 100%;
+  height: auto;
   margin: 0 auto;
   text-align: center;
   padding: 18px 14px 14px;
   border: 1px solid #eed5df;
   border-radius: 19px;
   background: rgba(255,255,255,.82);
-  overflow: hidden;
+  overflow: visible;
   isolation: isolate;
+  min-height: 474px;
 }
 
 .women-card-inner::before {
@@ -399,9 +400,9 @@ body {
 .women-card-content {
   position: relative;
   z-index: 2;
-  height: 100%;
+  height: auto;
   box-sizing: border-box;
-  padding-bottom: 58px;
+  padding-bottom: 72px;
 }
 
 .women-card-label {
@@ -426,7 +427,7 @@ body {
   margin: 0 auto;
   max-width: 690px;
   font-family: Georgia, "Times New Roman", serif;
-  font-size: clamp(24px, 3.2vw, 32px);
+  font-size: clamp(23px, 3.2vw, 31px);
   line-height: 1.25;
   font-weight: 700;
   color: #5e4250;
@@ -519,7 +520,7 @@ footer {
   }
 
   .women-card-text {
-    font-size: clamp(22px, 6.5vw, 30px);
+    font-size: clamp(21px, 6.5vw, 29px);
     line-height: 1.24;
   }
 }
@@ -1092,7 +1093,7 @@ function ajustarVersiculoCanvas(ctx, texto, maxWidth, maxFont, minFont, maxLines
   ctx.font = `700 ${minFont}px Georgia`;
   return {
     tamanio: minFont,
-    lineas: dividirTextoCanvas(ctx, texto, maxWidth).slice(0, maxLines)
+    lineas: dividirTextoCanvas(ctx, texto, maxWidth)
   };
 }
 
@@ -1187,7 +1188,7 @@ async function crearImagenTarjeta() {
   ctx.fillStyle = "#9a7d89"; ctx.font = "36px Arial";
   ctx.fillText(womenCardDate.textContent || "Biblia Reina-Valera 1960", 540, 210);
 
-  const ajuste = ajustarVersiculoCanvas(ctx, versiculoTarjetaHoy.texto, 900, 96, 64, 6);
+  const ajuste = ajustarVersiculoCanvas(ctx, versiculoTarjetaHoy.texto, 900, 95, 52, 14);
   ctx.fillStyle = "#5e4250";
   ctx.font = `700 ${ajuste.tamanio}px Georgia`;
 
